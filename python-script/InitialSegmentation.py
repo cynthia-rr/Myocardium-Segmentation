@@ -7,8 +7,13 @@ PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/
 PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
 PATH_FOR_SAVE = "segmentations" # TODO: unsure about this saving file stuff
 
-# Load segmentations from TotalSegmentator, along with the original volume too
-# Load DICOM folder, get Volume node # 
+#### Initialisation and setup ####
+
+# Load NIFTI file, get Volume node
+"""volumeNode = slicer.util.loadVolume(PATH_TO_NIFTI)
+print("Loaded dataset from: ", PATH_TO_NIFTI)"""
+
+# Load DICOM folder, get Volume node # TODO: create helper function to do this
 DICOMUtils = DICOMLib.DICOMUtils
 with DICOMUtils.TemporaryDICOMDatabase() as db:
     DICOMUtils.importDicom(PATH_TO_DICOM_FOLDER, db)
@@ -29,15 +34,19 @@ volumeDisplayNode.SetLevel(DISPLAY_LEVEL)
 segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "Myocardium-Segmentation")
 segmentationNode.CreateDefaultDisplayNodes()  # only needed for display, not necessary for processing
 
-# Load segmentation from TotalSegmentator
-for file in PATH_FOR_SAVE:
-    if file.endswith(".stl"):
-        node = slicer.util.loadModel(PATH_FOR_SAVE / file)
+# Access TotalSegmentator Logic
+totalSegmentatorWidget = slicer.modules.totalsegmentator.widgetRepresentation()
+totalSegmentatorLogic = totalSegmentatorWidget.self().logic
 
-print("Loaded segmentations from: ", PATH_FOR_SAVE)
+# Run TotalSegmentator with appropriate parameters
+print("Starting to run TotalSegmentator")
+totalSegmentatorLogic.process(inputVolume=volumeNode, 
+                                outputSegmentation=segmentationNode, 
+                                quality=SEGMENTATION_QUALITY,
+                                task=SEGMENTATION_TASK)
+print("Total Segmentator segmentation complete")
 
 
-#################################################################
 
 # Create new segmentations for the right myocardium, left scar, right scar, setting their ID, name and colour
 segmentation = segmentationNode.GetSegmentation() # TODO: finetune these colours
@@ -120,9 +129,10 @@ print("Finished segmenting right myocardium")
 segmentEditorWidget.setActiveEffectByName("Threshold")
 effect = segmentEditorWidget.activeEffect()
 segmentEditorNode.SetSelectedSegmentID(scarSegmentID) # change selected segment to the General Scar segment
-segmentEditorNode.SetSourceVolumeIntensityMask(True)
-segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_SCAR_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
 segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone) # allow overlap with other segments
+effect.setParameter("MinimumThreshold", str(MIN_SCAR_THRESHOLD_VALUE))
+effect.setParameter("MaximumThreshold", str(MAX_SCAR_THRESHOLD_VALUE))
+
 
 effect.self().onApply()
 
@@ -179,3 +189,13 @@ for segmentId in segmentation.GetSegmentIDs():
     print(segmentId, " --> ", segment.GetName())
 """
 
+
+
+"""
+# save, exit
+# TODO: add error checking
+segLogic = slicer.modules.segmentations.logic()
+segLogic.ExportSegmentsClosedSurfaceRepresentationToFiles("segmentations", segmentationNode)
+print("Saved segmentation to: ", PATH_FOR_SAVE)
+# slicer.util.exit()
+"""
