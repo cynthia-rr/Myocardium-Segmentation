@@ -5,7 +5,8 @@ from GlobalConstants import *
 
 PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/s0738/ct.nii.gz"
 PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
-PATH_FOR_SAVE = "segmentations" # TODO: unsure about this saving file stuff
+PATH_FOR_SAVE = "segmentations" 
+# TODO: unsure about this saving file stuff
 
 #### Initialisation and setup ####
 
@@ -13,7 +14,8 @@ PATH_FOR_SAVE = "segmentations" # TODO: unsure about this saving file stuff
 """volumeNode = slicer.util.loadVolume(PATH_TO_NIFTI)
 print("Loaded dataset from: ", PATH_TO_NIFTI)"""
 
-# Load DICOM folder, get Volume node # TODO: create helper function to do this
+# Load DICOM folder, get Volume node 
+# TODO: create helper function to do this
 DICOMUtils = DICOMLib.DICOMUtils
 with DICOMUtils.TemporaryDICOMDatabase() as db:
     DICOMUtils.importDicom(PATH_TO_DICOM_FOLDER, db)
@@ -81,11 +83,22 @@ print("Initialisation and setup complete")
 
 #### Segmenting the right myocardium ####
 
+# Set Editor Widget to the Islands effect
+segmentEditorWidget.setActiveEffectByName("Islands")
+effect = segmentEditorWidget.activeEffect()
+# Set the selected segment to the right ventricle
+segmentEditorNode.SetSelectedSegmentID(rightVentricleSegmentID)
+# Keep only the largest island, remove small blobs
+effect.setParameter("Operation", "KEEP_LARGEST_ISLAND")
+effect.self().onApply()
+
+
 # Set Editor Widget to the Logical Operators effect 
 segmentEditorWidget.setActiveEffectByName("Logical operators")
 effect = segmentEditorWidget.activeEffect()
 # Set the Segment Editor Node to right myocardium segment
 segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID) 
+
 # Use Union to copy the right ventricle into the right myocardium segment
 effect.setParameter("Operation", "UNION")
 effect.setParameter("ModifierSegmentID", rightVentricleSegmentID) 
@@ -115,8 +128,9 @@ segmentEditorWidget.setActiveEffectByName("Logical operators")
 effect = segmentEditorWidget.activeEffect()
 
 segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID) ####### TODO: should prob make this cleaner
+segmentEditorNode.SetSourceVolumeIntensityMask(False)
 
-effect.setParameter("Operation", "SUBTRACT")
+effect.setParameter("Operation", "SUBTRACT") #TODO: change this to hollow?
 effect.setParameter("ModifierSegmentID", rightVentricleSegmentID) 
 effect.self().onApply()
 print("Finished segmenting right myocardium")
