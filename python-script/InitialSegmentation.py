@@ -3,10 +3,42 @@ import slicer
 import DICOMLib
 from GlobalConstants import *
 
+
+
 PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/s0738/ct.nii.gz"
 PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
 PATH_FOR_SAVE = "segmentations" 
 # TODO: unsure about this saving file stuff
+
+# TODO: create add effect function, set the function, set the parameters
+
+
+# Make the Myocardium (left, right) and Scar (left, right) segments visible, hide the rest
+# and show the centred 3D view of the segments
+def setMyocardiumScarsVisible(displayNode: slicer.vtkMRMLSegmentationDisplayNode, 
+                              segmentation: slicer.vtkMRMLSegmentationNode, 
+                              visibleSegmentIDs: list[str]):
+    for segmentID in segmentation.GetSegmentIDs():
+        displayNode.SetSegmentVisibility(segmentID, False)
+    for segmentID in visibleSegmentIDs:
+        displayNode.SetSegmentVisibility(segmentID, True)
+
+    # Show the segmentations in 3D, and center the 3D view
+    segmentationNode.CreateClosedSurfaceRepresentation()
+    displayNode.SetVisibility3D(True)
+    slicer.app.layoutManager().threeDWidget(0).threeDView().resetFocalPoint()
+
+def segmentScarInMyocardium(outputSegmentID: str, entireScarSegmentID: str, partialMyocardiumSegmentID:str):
+    segmentEditorWidget.setActiveEffectByName("Logical operators")
+    effect = segmentEditorWidget.activeEffect()
+    segmentEditorNode.SetSelectedSegmentID(outputSegmentID) # change selected segment
+    effect.setParameter("Operation", "UNION")
+    effect.setParameter("ModifierSegmentID", partialMyocardiumSegmentID) 
+    effect.self().onApply() # copy the myocardium segment into the output segment
+    effect.setParameter("Operation", "INTERSECT")
+    effect.setParameter("ModifierSegmentID", entireScarSegmentID)
+    effect.self().onApply() # scar segment = myocardium *intersection* scar segment
+
 
 #### Initialisation and setup ####
 
@@ -40,7 +72,7 @@ segmentationNode.CreateDefaultDisplayNodes()  # only needed for display, not nec
 totalSegmentatorWidget = slicer.modules.totalsegmentator.widgetRepresentation()
 totalSegmentatorLogic = totalSegmentatorWidget.self().logic
 
-# Run TotalSegmentator with appropriate parameters
+# Run TotalSegmentator Logic with appropriate parameters
 print("Starting to run TotalSegmentator")
 totalSegmentatorLogic.process(inputVolume=volumeNode, 
                                 outputSegmentation=segmentationNode, 
@@ -61,7 +93,7 @@ rightScarSegmentID = segmentation.AddEmptySegment("heart_scar_right", "right sca
 # Set the name of the old myocardium segment to be left myocardium, and save right ventricle segment ID for later use
 # Working off assumption of consistent naming from TotalSegmentator, but should add error checking
 leftMyocardiumSegmentID = segmentation.GetSegmentIdBySegmentName("myocardium") 
-# TODO: ^change the segment ID to left_myocardium for consistency?
+# TODO: change this to be adaptive so it doesn't break if the naming changes
 segmentation.GetSegment(leftMyocardiumSegmentID).SetName("left myocardium") 
 rightVentricleSegmentID = segmentation.GetSegmentIdBySegmentName("right ventricle of heart")
 
@@ -105,11 +137,11 @@ effect.setParameter("ModifierSegmentID", rightVentricleSegmentID)
 effect.self().onApply()
 
 
-# Set Editor Widget to the Margin effect
+# Set Editor Widget to the Margin effect # TODO: try using hollow instead?
 segmentEditorWidget.setActiveEffectByName("Margin")
 
 # Set the Segment Editor Node to right myocardium segment
-segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID) # TODO: see if I cand elete this? but then maybe not
+segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID) # TODO: see if I can delete this? but then maybe not
 
 
 # Set the Segment Editor node settings
@@ -118,9 +150,9 @@ segmentEditorNode.SetSourceVolumeIntensityMask(True)
 segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
 segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
 
-# use Segment Editor effects to grow the segment by 3.0mm, with relevant parameters
+# use Segment Editor effects to grow the segment by 7.0mm, with relevant parameters
 effect = segmentEditorWidget.activeEffect()
-effect.setParameter("MarginSizeMm", "3.0")
+effect.setParameter("MarginSizeMm", "8.0")
 effect.self().onApply()
 
 # subtract the right ventricle from the right myocardium segment to get the final right myocardium segmentation
@@ -133,60 +165,52 @@ segmentEditorNode.SetSourceVolumeIntensityMask(False)
 effect.setParameter("Operation", "SUBTRACT") #TODO: change this to hollow?
 effect.setParameter("ModifierSegmentID", rightVentricleSegmentID) 
 effect.self().onApply()
+
 print("Finished segmenting right myocardium")
+
+# Grow the left myocardium segment so it covers the entire muscle
+# Set Editor Widget to the Margin effect 
+segmentEditorWidget.setActiveEffectByName("Margin")
+
+# Set the Segment Editor Node to right myocardium segment
+segmentEditorNode.SetSelectedSegmentID(leftMyocardiumSegmentID) 
+
+# Set the Segment Editor node settings
+# (editable area, editable intensity range, overwrite)
+segmentEditorNode.SetSourceVolumeIntensityMask(True)
+segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
+segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+segmentEditorNode.SetMaskMode(3) # Set to editable area is outside all segments
+
+# use Segment Editor effects to grow the segment by 7.0mm, with relevant parameters
+effect = segmentEditorWidget.activeEffect()
+effect.setParameter("MarginSizeMm", "7.0")
+effect.self().onApply()
+
 
 #### Segmenting the scar tissue ####
 
-# TODO: INSTEAD of fiddling with the settings, instead call threshold on everything, 
-# then call intersection for left and right scar
-# segment the General scar tissue using threshold
+# Segment the General scar tissue using threshold
 segmentEditorWidget.setActiveEffectByName("Threshold")
 effect = segmentEditorWidget.activeEffect()
+segmentEditorNode.SetSourceVolumeIntensityMask(False)
+segmentEditorNode.SetMaskMode(0) # Set to editable area anywhere
 segmentEditorNode.SetSelectedSegmentID(scarSegmentID) # change selected segment to the General Scar segment
 segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone) # allow overlap with other segments
 effect.setParameter("MinimumThreshold", str(MIN_SCAR_THRESHOLD_VALUE))
 effect.setParameter("MaximumThreshold", str(MAX_SCAR_THRESHOLD_VALUE))
-
-
 effect.self().onApply()
 
-# set the left scar segment by taking the intersection of the scar and left myocardium segments
-segmentEditorWidget.setActiveEffectByName("Logical operators")
-effect = segmentEditorWidget.activeEffect()
-segmentEditorNode.SetSelectedSegmentID(leftScarSegmentID) # change selected segment to the left
-effect.setParameter("Operation", "UNION")
-effect.setParameter("ModifierSegmentID", leftMyocardiumSegmentID)
-effect.self().onApply()
-effect.setParameter("Operation", "INTERSECT")
-effect.setParameter("ModifierSegmentID", scarSegmentID)
-effect.self().onApply()
-
-# set the right scar segment by taking the intersection of the scar and right myocardium segments
-segmentEditorNode.SetSelectedSegmentID(rightScarSegmentID) # change selected segment to the right
-effect.setParameter("Operation", "UNION")
-effect.setParameter("ModifierSegmentID", rightMyocardiumSegmentID)
-effect.self().onApply()
-effect.setParameter("Operation", "INTERSECT")
-effect.setParameter("ModifierSegmentID", scarSegmentID)
-effect.self().onApply()
+# set the left/right scar segments by taking the intersection of the general scar and left/right myocardium segments
+segmentScarInMyocardium(leftScarSegmentID, scarSegmentID, leftMyocardiumSegmentID)
+segmentScarInMyocardium(rightScarSegmentID, scarSegmentID, rightMyocardiumSegmentID)
 
 print("Finished segmenting scar tissue")
 
+# Change visibility so that only left myocardium, right myocardium, left scar and right scar are visible
+setMyocardiumScarsVisible(segmentationNode.GetDisplayNode(), segmentation, [leftMyocardiumSegmentID, 
+                          rightMyocardiumSegmentID, leftScarSegmentID, rightScarSegmentID])
 
-# TODO: can i move this to the intialisation part
-# change visibility so that only left myocardium, right myocardium, left scar and right scar are visible
-displayNode = segmentationNode.GetDisplayNode()
-for segmentID in segmentation.GetSegmentIDs():
-    displayNode.SetSegmentVisibility(segmentID, False)
-    displayNode.SetSegmentVisibility("heart_myocardium", True) #TODO make variable?
-displayNode.SetSegmentVisibility(rightMyocardiumSegmentID, True)
-displayNode.SetSegmentVisibility(leftScarSegmentID, True)
-displayNode.SetSegmentVisibility(rightScarSegmentID, True)
-
-# Show the segmentations in 3D, and center the 3D view
-segmentationNode.CreateClosedSurfaceRepresentation()
-displayNode.SetVisibility3D(True)
-slicer.app.layoutManager().threeDWidget(0).threeDView().resetFocalPoint()
 
 
 
