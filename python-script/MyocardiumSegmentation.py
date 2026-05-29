@@ -20,7 +20,7 @@ def setMyocardiumScarsVisible(segmentationDisplayNode: slicer.vtkMRMLSegmentatio
         segmentationDisplayNode.SetSegmentVisibility(segmentID, True)
 
     # Show the segmentations in 3D, and center the 3D view
-    segmentationNode.CreateClosedSurfaceRepresentation()
+    segmentationChambersNode.CreateClosedSurfaceRepresentation()
     segmentationDisplayNode.SetVisibility3D(True)
     slicer.app.layoutManager().threeDWidget(0).threeDView().resetFocalPoint()
 
@@ -42,24 +42,24 @@ def segmentScarInMyocardium(outputSegmentID: str, entireScarSegmentID: str, part
 def importLabelmap(labelmap: slicer.vtkMRMLLabelMapVolumeNode) -> str:
     oldIDs = set(segmentation.GetSegmentIDs())
     print(oldIDs)
-    slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmap, segmentationNode)
+    slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmap, segmentationChambersNode)
     newIDs = set(segmentation.GetSegmentIDs())
     print(newIDs)
     return list(oldIDs - newIDs)[0]
 
 # Dividing left myocardium into inner, middle and outer layers # TODO: remove the segmentaiton?
 def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: slicer.vtkMRMLScalarVolumeNode,
-                    segmentationNode: slicer.vtkMRMLSegmentationNode, 
+                    segmentationChambersNode: slicer.vtkMRMLSegmentationNode, 
                     myocardiumSegmentID: str, ventricleSegmentID:str) -> tuple[str, str, str]:
     
     # Export myocardium to myocardiumlabel map
     myocardiumLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "MyocardiumLabelMap")
-    slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentationNode, [str(myocardiumSegmentID)],
+    slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentationChambersNode, [str(myocardiumSegmentID)],
                                                                       myocardiumLabelmap, volumeNode)
     
     # Export left ventricle segment to ventricle label map
     ventricleLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "VentricleLabelMap")
-    slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentationNode, [str(ventricleSegmentID)], 
+    slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentationChambersNode, [str(ventricleSegmentID)], 
                                                                       ventricleLabelmap, volumeNode)
 
     # Convert from labelmaps to SimpleITK images
@@ -115,9 +115,9 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     sitkUtils.PushVolumeToSlicer(outerImage, outerLabelmap)
 
     # Import labelmaps into segmentation
-    # slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(innerLabelmap, segmentationNode, "InnerLayerLabelmap")
-    # slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(middleLabelmap, segmentationNode, "MiddleLayerLabelmap")
-    # slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(outerLabelmap, segmentationNode, "OuterLayerLabelmap")
+    # slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(innerLabelmap, segmentationChambersNode, "InnerLayerLabelmap")
+    # slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(middleLabelmap, segmentationChambersNode, "MiddleLayerLabelmap")
+    # slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(outerLabelmap, segmentationChambersNode, "OuterLayerLabelmap")
 
     arr = slicer.util.arrayFromVolume(innerLabelmap)
 
@@ -185,15 +185,21 @@ volumeDisplayNode.SetWindow(DISPLAY_WINDOW)
 volumeDisplayNode.SetLevel(DISPLAY_LEVEL)
 
 # Load the saved segmentations
-segmentationNode = slicer.util.loadSegmentation(PATH_FOR_SAVE / "segmentation.seg.nrrd")
-segmentationNode.SetName("Heart-Segment")
+segmentationChambersNode = slicer.util.loadSegmentation(PATH_FOR_SAVE / SEGMENTATION_CHAMBERS_FILENAME)
+segmentationChambersNode.SetName("Myocardium-Segmentation")
+segmentationEffusionNode = slicer.util.loadSegmentation(PATH_FOR_SAVE / SEGMENTATION_EFFUSION_FILENAME)
+segmentationEffusionNode.SetName("Effusion-Segmentation")
+# TODO: error checking for alignment of segmentation on top of the volume node?
+
+
 
 # Create new segmentations for the right myocardium, left scar, right scar, setting their ID, name and colour
-segmentation = segmentationNode.GetSegmentation()
+segmentation = segmentationChambersNode.GetSegmentation()
 rightMyocardiumSegmentID = segmentation.AddEmptySegment("heart_myocardium_right", "right myocardium", [0.5, 0.0, 0.0])
 scarSegmentID = segmentation.AddEmptySegment("heart_scar", "scar", [1.0, 1.0, 0.0]) # Colour scars yellow
 leftScarSegmentID = segmentation.AddEmptySegment("heart_scar_left", "left scar", [1.0, 1.0, 0.0])
 rightScarSegmentID = segmentation.AddEmptySegment("heart_scar_right", "right scar", [1.0, 1.0, 0.0])
+borderSegmentID = segmentation.AddEmptySegment("heart_border", "border", [0.0, 0.5, 1.0])
 
 # Error checking if segments were created successfully, if not print error message then exit
 if not rightMyocardiumSegmentID or not scarSegmentID or not leftScarSegmentID or not rightScarSegmentID:
@@ -202,6 +208,7 @@ if not rightMyocardiumSegmentID or not scarSegmentID or not leftScarSegmentID or
 
 # Set the name of the old myocardium segment to be left myocardium, and save right ventricle segment ID for later use
 # Working off assumption of consistent naming from TotalSegmentator, but should add error checking
+pleuralEffusionSegmentID = segmentation.GetSegmentIdBySegmentName("") # TODO: add the name of the pleural effusion segmentation
 leftMyocardiumSegmentID = segmentation.GetSegmentIdBySegmentName("myocardium") 
 # TODO: change this to be adaptive so it doesn't break if the naming changes
 segmentation.GetSegment(leftMyocardiumSegmentID).SetName("left myocardium") 
@@ -215,7 +222,7 @@ segmentEditorWidget = slicer.qMRMLSegmentEditorWidget()
 segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode) # Set the Segment Editor node
 # Create Segment Editor widget's MRML scene, segmentation node and volume node
 segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
-segmentEditorWidget.setSegmentationNode(segmentationNode)
+segmentEditorWidget.setSegmentationNode(segmentationChambersNode)
 segmentEditorWidget.setSourceVolumeNode(volumeNode)
 
 
@@ -247,7 +254,7 @@ effect.self().onApply()
 
 # Set Editor Widget to the Margin effect 
 # # TODO: union also with a hollow shell of the right ventricle, 
-# so that there are no gaping holes in the myocardium
+# so that there are no gaping holes in the myocardium (and can do division by 3 layers)
 segmentEditorWidget.setActiveEffectByName("Margin")
 # Set the Segment Editor Node to right myocardium segment
 segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID)
@@ -257,9 +264,9 @@ segmentEditorNode.SetSourceVolumeIntensityMask(True)
 segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
 segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
 
-# use Segment Editor effects to grow the segment by 7.0mm, with relevant parameters
+# use Segment Editor effects to grow the right segment by 7.0mm, with relevant parameters
 effect = segmentEditorWidget.activeEffect()
-effect.setParameter("MarginSizeMm", "8.0")
+effect.setParameter("MarginSizeMm", "7.0") # TODO: how to determine width of right myocardium
 effect.self().onApply()
 
 # subtract the right ventricle from the right myocardium segment to get the final right myocardium segmentation
@@ -278,21 +285,23 @@ effect.self().onApply()
 segmentEditorWidget.setActiveEffectByName("Smoothing")
 segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID)
 segmentEditorNode.SetSourceVolumeIntensityMask(True)
-segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
+segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_THRESHOLD_VALUE, MIN_MYOCARDIUM_THRESHOLD_VALUE)
 segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
 
+ # TODO: there is a problem here with the smoothing, with the healthy version (the threshold values?)
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("SmoothingMethod", "CLOSING")
-effect.setParameter("KernelSizeMm", "4.0")
+effect.setParameter("KernelSizeMm", "3.0") # TODO: make this 50% of the entire myocardium thickcness?
 effect.self().onApply()
 
 segmentEditorNode.SetSourceVolumeIntensityMask(False) # Median smoothing anywhere
 effect.setParameter("SmoothingMethod", "MEDIAN")
-effect.setParameter("KernelSizeMm", "6.0")
+effect.setParameter("KernelSizeMm", "3.0")
 effect.self().onApply()
 
 
 print("Finished segmenting right myocardium")
+
 
 # Grow the left myocardium segment so it covers more of the left muscle
 # Set Editor Widget to the Margin effect 
@@ -306,33 +315,34 @@ segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_MYOCARDIUM_THRESHOLD_VAL
 segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
 segmentEditorNode.SetMaskMode(3) # Set to editable area is outside all segments
 
-# use Segment Editor effects to grow the segment by 7.0mm
+# use Segment Editor effects to grow the left myocardium segment # TODO: grow size?
 effect = segmentEditorWidget.activeEffect()
-effect.setParameter("MarginSizeMm", "6.0")
+effect.setParameter("MarginSizeMm", "5.5")
 effect.self().onApply()
 
 
-# Smooth the right myocardium segment slightly # TODO: remove this if it is unhelpful
+# Smooth the left myocardium segment slightly # TODO: remove this if it is unhelpful
 segmentEditorWidget.setActiveEffectByName("Smoothing")
-segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID)
+segmentEditorNode.SetSelectedSegmentID(leftMyocardiumSegmentID)
 segmentEditorNode.SetSourceVolumeIntensityMask(True)
-segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
+segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_THRESHOLD_VALUE, MIN_MYOCARDIUM_THRESHOLD_VALUE)
 segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("SmoothingMethod", "CLOSING")
-effect.setParameter("KernelSizeMm", "4.0")
+effect.setParameter("KernelSizeMm", "3.0") # TODO: adjust size
 effect.self().onApply()
 
 segmentEditorNode.SetSourceVolumeIntensityMask(False) # Median smoothing anywhere
 effect.setParameter("SmoothingMethod", "MEDIAN")
-effect.setParameter("KernelSizeMm", "6.0")
+effect.setParameter("KernelSizeMm", "3.0") # TODO: adjust size
 effect.self().onApply()
+
 
 #### Segmenting the scar tissue ####
 
 # Segment the General scar tissue using threshold
-segmentEditorWidget.setActiveEffectByName("Threshold")
+segmentEditorWidget.setActiveEffectByName("Threshold") # TODO: make a helper function for this mask parameter setting given the node
 segmentEditorNode.SetSourceVolumeIntensityMask(False)
 segmentEditorNode.SetMaskMode(0) # Set to editable area anywhere
 segmentEditorNode.SetSelectedSegmentID(scarSegmentID) # change selected segment to the General Scar segment
@@ -343,9 +353,41 @@ effect.setParameter("MinimumThreshold", str(MIN_SCAR_THRESHOLD_VALUE))
 effect.setParameter("MaximumThreshold", str(MAX_SCAR_THRESHOLD_VALUE))
 effect.self().onApply()
 
+# Ensure that the dark border around the left/right myocardium is not mistakenly included in the General scar
+# Copy the Pleural Effusion into the Border segment # TODO: make a helper for this
+segmentEditorWidget.setActiveEffectByName("Logical operators")
+# Set the Segment Editor Node to right myocardium segment
+segmentEditorNode.SetSelectedSegmentID(pleuralEffusionSegmentID) 
+
+# Use Union to copy the pleural effusion  into the heart border segment
+effect = segmentEditorWidget.activeEffect()
+effect.setParameter("Operation", "UNION")
+effect.setParameter("ModifierSegmentID", borderSegmentID) 
+effect.self().onApply()
+
+
+# Use the Hollow tool to draw the border of the heart tissue using the Pleural Effusion segment
+segmentEditorWidget.setActiveEffectByName("Hollow")
+segmentEditorNode.SetSourceVolumeIntensityMask(False)
+segmentEditorNode.SetMaskMode(0) # Set to editable area anywhere
+segmentEditorNode.SetSelectedSegmentID(borderSegmentID) # change selected segment to the General Scar segment
+segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone) # allow overlap with other segments
+
+effect = segmentEditorWidget.activeEffect()
+effect.setParameter("ShellThicknessMm", "2.7")
+effect.setParameter("ShellMode", "INSIDE_SURFACE")
+effect.setParameter("ApplyToAllVisibleSegments", "0")
+effect.self().onApply()
+
+
+# Subtract the Border from the Scar segment (Scar = Scar - Border)
+
+
+
 # set the left/right scar segments by taking the intersection of the general scar and left/right myocardium segments
 segmentScarInMyocardium(leftScarSegmentID, scarSegmentID, leftMyocardiumSegmentID)
 segmentScarInMyocardium(rightScarSegmentID, scarSegmentID, rightMyocardiumSegmentID)
+
 
 # Smooth the right scar segment slightly # TODO: remove this if it is unhelpful
 # TODO: make a smoothing function, with segmentID, mask thresholds, and type of smoothing as parameters, to avoid repeating code
@@ -357,7 +399,7 @@ segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("SmoothingMethod", "CLOSING")
-effect.setParameter("KernelSizeMm", "4.0")
+effect.setParameter("KernelSizeMm", "2.0")
 effect.self().onApply()
 
 # TODO: fix the magic numbers
@@ -375,7 +417,7 @@ segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("SmoothingMethod", "CLOSING")
-effect.setParameter("KernelSizeMm", "4.0")
+effect.setParameter("KernelSizeMm", "2.0")
 effect.self().onApply()
 
 # TODO: fix the magic numbers
@@ -388,21 +430,27 @@ effect.self().onApply()
 print("Finished segmenting scar tissue")
 
 
+
+
+
+
 # TODO: make myocaridum a closed wall?
 
 # TODO: divide myocaridum into 3 layers
 leftVentricleSegmentID = segmentation.GetSegmentIdBySegmentName("left ventricle of heart") 
 # TODO: change this to be adaptive so it doesn't break if the naming changes
 leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, leftMyocardiumOuterSegmentID = divideMyocardium(
-    segmentation, volumeNode, segmentationNode, leftMyocardiumSegmentID, leftVentricleSegmentID)
-
+    segmentation, volumeNode, segmentationChambersNode, leftMyocardiumSegmentID, leftVentricleSegmentID)
 
 
 
 # Change visibility so that only left myocardium, right myocardium, left scar and right scar are visible
-setMyocardiumScarsVisible(segmentationNode.GetDisplayNode(), segmentation, [leftMyocardiumSegmentID, 
-                          rightMyocardiumSegmentID, leftScarSegmentID, rightScarSegmentID, 
-                          leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, leftMyocardiumOuterSegmentID])
+# setMyocardiumScarsVisible(segmentationChambersNode.GetDisplayNode(), segmentation, [leftMyocardiumSegmentID, 
+#                           rightMyocardiumSegmentID, leftScarSegmentID, rightScarSegmentID, 
+#                           leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, leftMyocardiumOuterSegmentID])
+
+setMyocardiumScarsVisible(segmentationChambersNode.GetDisplayNode(), segmentation, [leftMyocardiumSegmentID, 
+                          rightMyocardiumSegmentID, leftScarSegmentID, rightScarSegmentID])
 
 
 
@@ -419,7 +467,7 @@ for segmentId in segmentation.GetSegmentIDs():
 """
 # save, exit
 segLogic = slicer.modules.segmentations.logic()
-segLogic.ExportSegmentsClosedSurfaceRepresentationToFiles("segmentations", segmentationNode)
+segLogic.ExportSegmentsClosedSurfaceRepresentationToFiles("segmentations", segmentationChambersNode)
 print("Saved segmentation to: ", PATH_FOR_SAVE)
 # slicer.util.exit()
 """

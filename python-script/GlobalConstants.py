@@ -5,6 +5,9 @@ PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/
 PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
 PATH_FOR_SAVE = Path.home() / "Documents/sjhc/extension-repo/python-script/segmentations"
 
+SEGMENTATION_CHAMBERS_FILENAME = "chambers-segmentation.seg.nrrd"
+SEGMENTATION_EFFUSION_FILENAME = "effusion-segmentation.seg.nrrd"
+
 DISPLAY_WINDOW = 800
 DISPLAY_LEVEL = 200
 
@@ -16,7 +19,8 @@ MIN_SCAR_THRESHOLD_VALUE = -200
 MAX_SCAR_THRESHOLD_VALUE = -60
 
 SEGMENTATION_QUALITY = "normal"
-SEGMENTATION_TASK = "heartchambers_highres"
+SEGMENTATION_CHAMBERS_TASK = "heartchambers_highres"
+SEGMENTATION_EFFUSION_TASK = "pleural_pericard_effusion"
 
 LOGICAL_UNION = "UNION"
 LOGICAL_INTERSECT = "INTERSECT"

@@ -27,27 +27,34 @@ volumeNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLScalarVolumeNode")
 print("Loaded dataset from: ", PATH_TO_DICOM_FOLDER)
 
 # Create segmentation node
-segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "Myocardium-Segmentation")
+segmentationChambersNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "Myocardium-Segmentation")
+segmentationEffusionNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "Effusion-Segmentation")
 #segmentationNode.CreateDefaultDisplayNodes()  # only needed for display, not necessary for processing
 
 # Access TotalSegmentator Widget 
 totalSegmentatorWidget = slicer.modules.totalsegmentator.widgetRepresentation()
 
 # Run TotalSegmentator Logic with appropriate parameters
-print("Starting to run TotalSegmentator")
-totalSegmentatorWidget.self().logic.process(inputVolume=volumeNode, outputSegmentation=segmentationNode, 
-                                quality=SEGMENTATION_QUALITY,task=SEGMENTATION_TASK)
+print("Starting to run TotalSegmentator heart segmentation")
+totalSegmentatorWidget.self().logic.process(inputVolume=volumeNode, outputSegmentation=segmentationChambersNode, 
+                                quality=SEGMENTATION_QUALITY,task=SEGMENTATION_CHAMBERS_TASK)
 # Error checking if TotalSegmentator created segments, if not print error message then exit
-if not segmentationNode.GetSegmentation().GetSegmentIDs():
+if not segmentationChambersNode.GetSegmentation().GetSegmentIDs():
     print("Error running TotalSegmentator, no segments created")
     exit()
-print("Total Segmentator segmentation complete")
+print("Total Segmentator heart segmentation complete")
+
+print("Starting to run TotalSegmentator effusion segmentation")
+totalSegmentatorWidget.self().logic.process(inputVolume=volumeNode, outputSegmentation=segmentationEffusionNode, 
+                                quality=SEGMENTATION_QUALITY,task=SEGMENTATION_EFFUSION_TASK)
+print("Total Segmentator effusion segmentation complete")
 
 
 # save, exit
-slicer.util.saveNode(segmentationNode, str(PATH_FOR_SAVE / "segmentation.seg.nrrd"))
-print("Saved TotalSegmentator segmentation, and now exit")
-# slicer.util.exit()
+slicer.util.saveNode(segmentationChambersNode, str(PATH_FOR_SAVE / SEGMENTATION_CHAMBERS_FILENAME))
+slicer.util.saveNode(segmentationEffusionNode, str(PATH_FOR_SAVE / SEGMENTATION_EFFUSION_FILENAME))
+print("Saved TotalSegmentator segmentation x2, and now exit")
+slicer.util.exit()
 
 
 """segLogic = slicer.modules.segmentations.logic()
