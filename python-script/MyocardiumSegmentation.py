@@ -9,6 +9,20 @@ import scipy
 
 # TODO: unsure about this saving file stuff
 
+def unionSegments(segmentEditorWidget: slicer.qMRMLSegmentEditorWidget, segmentEditorNode: slicer.vtkMRMLSegmentEditorNode,
+                sourceSegmentID: str, destinationSegmentID: str) -> None:
+    # Set Editor Widget to the Logical Operators effect 
+    segmentEditorWidget.setActiveEffectByName("Logical operators")
+    # Set the Segment Editor Node to right myocardium segment
+    segmentEditorNode.SetSelectedSegmentID(destinationSegmentID) 
+    segmentEditorNode.SetSourceVolumeIntensityMask(False)
+    
+    # Use Union to copy the source segment into the destination segment
+    effect = segmentEditorWidget.activeEffect()
+    effect.setParameter("Operation", "UNION")
+    effect.setParameter("ModifierSegmentID", sourceSegmentID) 
+    effect.self().onApply()
+
 # Make the Myocardium (left, right) and Scar (left, right) segments visible, hide the rest
 # and show the centred 3D view of the segments
 def setMyocardiumScarsVisible(segmentationDisplayNode: slicer.vtkMRMLSegmentationDisplayNode, 
@@ -26,16 +40,14 @@ def setMyocardiumScarsVisible(segmentationDisplayNode: slicer.vtkMRMLSegmentatio
 
 # Use union to copy the left/right myocardium segment into the left/right scar segment, 
 # then take the intersection with the scar segment to get the scar within the myocardium
-def segmentScarInMyocardium(outputSegmentID: str, entireScarSegmentID: str, partialMyocardiumSegmentID:str) -> None:
+def intersectSegments(sourceSegmentID: str, destinationSegmentID: str) -> None:
     segmentEditorWidget.setActiveEffectByName("Logical operators")
-    segmentEditorNode.SetSelectedSegmentID(outputSegmentID) # change selected segment
+    segmentEditorNode.SetSelectedSegmentID(destinationSegmentID) # change selected segment
+    segmentEditorNode.SetSourceVolumeIntensityMask(False)
     effect = segmentEditorWidget.activeEffect()
-    effect.setParameter("Operation", "UNION")
-    effect.setParameter("ModifierSegmentID", partialMyocardiumSegmentID) 
-    effect.self().onApply() # copy the myocardium segment into the output segment
     effect.setParameter("Operation", "INTERSECT")
-    effect.setParameter("ModifierSegmentID", entireScarSegmentID)
-    effect.self().onApply() # scar segment = myocardium *intersection* scar segment
+    effect.setParameter("ModifierSegmentID", sourceSegmentID) 
+    effect.self().onApply() 
 
 
 # Importing labelmap into segment, and returning the ID
@@ -199,7 +211,8 @@ rightMyocardiumSegmentID = segmentation.AddEmptySegment("heart_myocardium_right"
 scarSegmentID = segmentation.AddEmptySegment("heart_scar", "scar", [1.0, 1.0, 0.0]) # Colour scars yellow
 leftScarSegmentID = segmentation.AddEmptySegment("heart_scar_left", "left scar", [1.0, 1.0, 0.0])
 rightScarSegmentID = segmentation.AddEmptySegment("heart_scar_right", "right scar", [1.0, 1.0, 0.0])
-borderSegmentID = segmentation.AddEmptySegment("heart_border", "border", [0.0, 0.5, 1.0])
+borderSegmentID = segmentation.AddEmptySegment("heart_border", "border", [0.0, 0.5, 1.0]) 
+# TODO: change borderSegmentID into a temp segment id?, delete when done with it
 
 # Error checking if segments were created successfully, if not print error message then exit
 if not rightMyocardiumSegmentID or not scarSegmentID or not leftScarSegmentID or not rightScarSegmentID:
@@ -213,6 +226,7 @@ leftMyocardiumSegmentID = segmentation.GetSegmentIdBySegmentName("myocardium")
 # TODO: change this to be adaptive so it doesn't break if the naming changes
 segmentation.GetSegment(leftMyocardiumSegmentID).SetName("left myocardium") 
 rightVentricleSegmentID = segmentation.GetSegmentIdBySegmentName("right ventricle of heart")
+leftVentricleSegmentID = segmentation.GetSegmentIdBySegmentName("left ventricle of heart")
 
 print("Created new segments for right myocardium, left scar and right scar")
 
@@ -239,18 +253,7 @@ effect = segmentEditorWidget.activeEffect()
 effect.setParameter("Operation", "KEEP_LARGEST_ISLAND")
 effect.self().onApply()
 
-
-# Set Editor Widget to the Logical Operators effect 
-segmentEditorWidget.setActiveEffectByName("Logical operators")
-# Set the Segment Editor Node to right myocardium segment
-segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID) 
-
-# Use Union to copy the right ventricle into the right myocardium segment
-effect = segmentEditorWidget.activeEffect()
-effect.setParameter("Operation", "UNION")
-effect.setParameter("ModifierSegmentID", rightVentricleSegmentID) 
-effect.self().onApply()
-
+unionSegments(segmentEditorWidget, segmentEditorNode, rightVentricleSegmentID, rightMyocardiumSegmentID)
 
 # Set Editor Widget to the Margin effect 
 # # TODO: union also with a hollow shell of the right ventricle, 
@@ -302,6 +305,7 @@ effect.self().onApply()
 
 print("Finished segmenting right myocardium")
 
+### Improving the segmentation of the left myocardium ####
 
 # Grow the left myocardium segment so it covers more of the left muscle
 # Set Editor Widget to the Margin effect 
@@ -319,6 +323,25 @@ segmentEditorNode.SetMaskMode(3) # Set to editable area is outside all segments
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("MarginSizeMm", "5.5")
 effect.self().onApply()
+
+
+# Use Hollow effect on left ventricle, then union to left myocardium to make it a closed loop
+# Create temporary segment for the hollowed left ventricle
+tempSegmentID = segmentation.AddEmptySegment("hollow-left-ventricle", "hollow", [0.0, 1.0, 0.0])
+
+# Copy in left ventricle
+unionSegments(segmentEditorWidget, segmentEditorNode, leftVentricleSegmentID, tempSegmentID)
+
+segmentEditorWidget.setActiveEffectByName("Hollow")
+segmentEditorNode.SetSelectedSegmentID(tempSegmentID)
+segmentEditorNode.SetSourceVolumeIntensityMask(False)
+effect = segmentEditorWidget.activeEffect()
+effect.setParameter("ApplyToAllVisibleSegments", 0)
+effect.setParameter("ShellMode", "INSIDE_SURFACE")
+effect.setParameter("ShellThicknessMm", "1.2")
+effect.self().onApply()
+
+unionSegments(segmentEditorWidget, segmentEditorNode, tempSegmentID, leftMyocardiumSegmentID)
 
 
 # Smooth the left myocardium segment slightly # TODO: remove this if it is unhelpful
@@ -354,16 +377,9 @@ effect.setParameter("MaximumThreshold", str(MAX_SCAR_THRESHOLD_VALUE))
 effect.self().onApply()
 
 # Ensure that the dark border around the left/right myocardium is not mistakenly included in the General scar
-# Copy the Pleural Effusion into the Border segment # TODO: make a helper for this
-segmentEditorWidget.setActiveEffectByName("Logical operators")
-# Set the Segment Editor Node to right myocardium segment
-segmentEditorNode.SetSelectedSegmentID(pleuralEffusionSegmentID) 
-
-# Use Union to copy the pleural effusion  into the heart border segment
-effect = segmentEditorWidget.activeEffect()
-effect.setParameter("Operation", "UNION")
-effect.setParameter("ModifierSegmentID", borderSegmentID) 
-effect.self().onApply()
+# Copy the Pleural Effusion into the Border segment 
+unionSegments(segmentEditorWidget, segmentEditorNode, borderSegmentID, pleuralEffusionSegmentID)
+# TODO: fix this, it doesn't work since they are in different segmentation nodes...
 
 
 # Use the Hollow tool to draw the border of the heart tissue using the Pleural Effusion segment
@@ -385,8 +401,12 @@ effect.self().onApply()
 
 
 # set the left/right scar segments by taking the intersection of the general scar and left/right myocardium segments
-segmentScarInMyocardium(leftScarSegmentID, scarSegmentID, leftMyocardiumSegmentID)
-segmentScarInMyocardium(rightScarSegmentID, scarSegmentID, rightMyocardiumSegmentID)
+# copy 
+
+unionSegments(segmentEditorWidget, segmentEditorNode, leftMyocardiumSegmentID, leftScarSegmentID)
+intersectSegments(scarSegmentID, leftScarSegmentID)
+unionSegments(segmentEditorWidget, segmentEditorNode, rightMyocardiumSegmentID, rightScarSegmentID)
+intersectSegments(scarSegmentID, rightScarSegmentID)
 
 
 # Smooth the right scar segment slightly # TODO: remove this if it is unhelpful
@@ -439,9 +459,9 @@ print("Finished segmenting scar tissue")
 # TODO: divide myocaridum into 3 layers
 leftVentricleSegmentID = segmentation.GetSegmentIdBySegmentName("left ventricle of heart") 
 # TODO: change this to be adaptive so it doesn't break if the naming changes
-leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, leftMyocardiumOuterSegmentID = divideMyocardium(
+"""leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, leftMyocardiumOuterSegmentID = divideMyocardium(
     segmentation, volumeNode, segmentationChambersNode, leftMyocardiumSegmentID, leftVentricleSegmentID)
-
+"""
 
 
 # Change visibility so that only left myocardium, right myocardium, left scar and right scar are visible
