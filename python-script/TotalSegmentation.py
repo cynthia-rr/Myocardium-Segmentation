@@ -29,7 +29,7 @@ print("Loaded dataset from: ", PATH_TO_DICOM_FOLDER)
 # Create segmentation node
 segmentationChambersNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "Myocardium-Segmentation")
 segmentationEffusionNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "Effusion-Segmentation")
-#segmentationNode.CreateDefaultDisplayNodes()  # only needed for display, not necessary for processing
+segmentationArteryNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "Artery-Segmentation")
 
 # Access TotalSegmentator Widget 
 totalSegmentatorWidget = slicer.modules.totalsegmentator.widgetRepresentation()
@@ -49,11 +49,17 @@ totalSegmentatorWidget.self().logic.process(inputVolume=volumeNode, outputSegmen
                                 quality=SEGMENTATION_QUALITY,task=SEGMENTATION_EFFUSION_TASK)
 print("Total Segmentator effusion segmentation complete")
 
+print("Starting to run TotalSegmentator coronary artery segmentation")
+totalSegmentatorWidget.self().logic.process(inputVolume=volumeNode, outputSegmentation=segmentationArteryNode, 
+                                quality=SEGMENTATION_QUALITY,task=SEGMENTATION_ARTERY_TASK)
+print("Total Segmentator coronary artery segmentation complete")
+
 
 # save, exit
 slicer.util.saveNode(segmentationChambersNode, str(PATH_FOR_SAVE / SEGMENTATION_CHAMBERS_FILENAME))
 slicer.util.saveNode(segmentationEffusionNode, str(PATH_FOR_SAVE / SEGMENTATION_EFFUSION_FILENAME))
-print("Saved TotalSegmentator segmentation x2, and now exit")
+slicer.util.saveNode(segmentationArteryNode, str(PATH_FOR_SAVE / SEGMENTATION_ARTERY_FILENAME))
+print("Saved TotalSegmentator segmentation x3, and now exit")
 slicer.util.exit()
 
 
