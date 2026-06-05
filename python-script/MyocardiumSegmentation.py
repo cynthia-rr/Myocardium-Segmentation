@@ -255,12 +255,6 @@ segmentEditorWidget.setSegmentationNode(segmentationChambersNode)
 segmentEditorWidget.setSourceVolumeNode(volumeNode)
 
 
-slicer.util.infoDisplay("Create the segment, then click OK.")
-segmentName = qt.QInputDialog.getText(None,"Segment Name","Enter segment name:")[0]
-
-
-
-
 #### Segmenting the right myocardium ####
 # Set Editor Widget to the Islands effect
 segmentEditorWidget.setActiveEffectByName("Islands")
