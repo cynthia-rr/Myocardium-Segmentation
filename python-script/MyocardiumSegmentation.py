@@ -10,6 +10,17 @@ from GlobalConstants import *
 
 # Helper functions for segment manipulation
 
+def setSegmentEditorNode(segmentEditorNode: slicer.vtkMRMLSegmentEditorNode, selectedSegmentID: str, 
+                         maskOn: bool, maskMode: int, minBound:int = 0, maxBound: int = 0) -> None:
+
+    segmentEditorNode.SetSelectedSegmentID(selectedSegmentID)
+    segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+    segmentEditorNode.SetMaskMode(maskMode)
+    segmentEditorNode.SetSourceVolumeIntensityMask(maskOn)
+    if maskOn:
+        segmentEditorNode.SetSourceVolumeIntensityMaskRange(minBound, maxBound)
+
+
 def unionSegments(segmentEditorWidget: slicer.qMRMLSegmentEditorWidget, segmentEditorNode: slicer.vtkMRMLSegmentEditorNode,
                 sourceSegmentID: str, destinationSegmentID: str) -> None:
     # Set Editor Widget to the Logical Operators effect 
@@ -25,21 +36,6 @@ def unionSegments(segmentEditorWidget: slicer.qMRMLSegmentEditorWidget, segmentE
     effect.setParameter("ModifierSegmentID", sourceSegmentID) 
     effect.self().onApply()
 
-# Make the Myocardium (left, right) and Scar (left, right) segments visible, hide the rest
-# and show the centred 3D view of the segments
-def setSegmentsVisible(segmentationNode: slicer.vtkMRMLSegmentationNode, 
-                              segmentation: slicer.vtkMRMLSegmentationNode, 
-                              visibleSegmentIDs: list[str]) -> None:
-    for segmentID in segmentation.GetSegmentIDs():
-        segmentationNode.GetDisplayNode().SetSegmentVisibility(segmentID, False)
-    for segmentID in visibleSegmentIDs:
-        segmentationNode.GetDisplayNode().SetSegmentVisibility(segmentID, True)
-
-    # Show the segmentations in 3D, and center the 3D view
-    segmentationNode.CreateClosedSurfaceRepresentation() 
-    segmentationNode.GetDisplayNode().SetVisibility3D(True)
-    slicer.app.layoutManager().threeDWidget(0).threeDView().resetFocalPoint()
-
 # Use union to copy the left/right myocardium segment into the left/right scar segment, 
 # then take the intersection with the scar segment to get the scar within the myocardium
 def intersectSegments(sourceSegmentID: str, destinationSegmentID: str) -> None:
@@ -50,7 +46,6 @@ def intersectSegments(sourceSegmentID: str, destinationSegmentID: str) -> None:
     effect.setParameter("Operation", "INTERSECT")
     effect.setParameter("ModifierSegmentID", sourceSegmentID) 
     effect.self().onApply() 
-
 
 # Importing labelmap into segment, and returning the ID
 def importLabelmap(labelmap: slicer.vtkMRMLLabelMapVolumeNode) -> str:
@@ -156,6 +151,20 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
 
     return innerID, middleID, outerID # Return segment IDs
 
+# Make the Myocardium (left, right) and Scar (left, right) segments visible, hide the rest
+# and show the centred 3D view of the segments
+def setSegmentsVisible(segmentationNode: slicer.vtkMRMLSegmentationNode, 
+                              segmentation: slicer.vtkMRMLSegmentationNode, 
+                              visibleSegmentIDs: list[str]) -> None:
+    for segmentID in segmentation.GetSegmentIDs():
+        segmentationNode.GetDisplayNode().SetSegmentVisibility(segmentID, False)
+    for segmentID in visibleSegmentIDs:
+        segmentationNode.GetDisplayNode().SetSegmentVisibility(segmentID, True)
+
+    # Show the segmentations in 3D, and center the 3D view
+    segmentationNode.CreateClosedSurfaceRepresentation() 
+    segmentationNode.GetDisplayNode().SetVisibility3D(True)
+    slicer.app.layoutManager().threeDWidget(0).threeDView().resetFocalPoint()
 
 
 
@@ -243,8 +252,7 @@ segmentEditorWidget.setSourceVolumeNode(volumeNode)
 #### Segmenting the right myocardium ####
 # Set Editor Widget to the Islands effect
 segmentEditorWidget.setActiveEffectByName("Islands")
-# Set the selected segment to the right ventricle
-segmentEditorNode.SetSelectedSegmentID(rightVentricleSegmentID)
+setSegmentEditorNode(segmentEditorNode, rightVentricleSegmentID, False, EDITABLE_ANYWHERE)
 
 # Keep only the largest island, remove small blobs
 effect = segmentEditorWidget.activeEffect()
@@ -255,10 +263,7 @@ unionSegments(segmentEditorWidget, segmentEditorNode, rightVentricleSegmentID, r
 
 # Start from the right ventricle segment, and hollow it to get the smallest border possible
 segmentEditorWidget.setActiveEffectByName("Hollow") 
-segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID)
-segmentEditorNode.SetSourceVolumeIntensityMask(False)
-segmentEditorNode.SetMaskMode(EDITABLE_ANYWHERE) # Set to editable area anywhere
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+setSegmentEditorNode(segmentEditorNode, rightMyocardiumSegmentID, False, EDITABLE_ANYWHERE)
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("ApplyToAllVisibleSegments", 0)
@@ -268,43 +273,23 @@ effect.self().onApply()
 
 # Set Editor Widget to the Margin effect 
 segmentEditorWidget.setActiveEffectByName("Margin")
-# Set the Segment Editor Node to right myocardium segment
-segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID)
-# Set the Segment Editor node settings
-segmentEditorNode.SetSourceVolumeIntensityMask(True)
-segmentEditorNode.SetMaskMode(EDITABLE_ANYWHERE) # Set to editable area anywhere
-segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+setSegmentEditorNode(segmentEditorNode, rightMyocardiumSegmentID, True, EDITABLE_ANYWHERE, 
+                     MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
 
 # use Segment Editor effects to grow the right segment by ??mm, with relevant parameters
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("MarginSizeMm", RIGHT_MYOCARDIUM_DEPTH) 
 effect.self().onApply()
 
-# TODO: should i subtract this?
-# subtract the right ventricle from the right myocardium segment to get the final right myocardium segmentation
-segmentEditorWidget.setActiveEffectByName("Logical operators")
-segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID)
-segmentEditorNode.SetSourceVolumeIntensityMask(False)
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
-
-effect = segmentEditorWidget.activeEffect()
-effect.setParameter("Operation", "SUBTRACT") 
-effect.setParameter("ModifierSegmentID", rightVentricleSegmentID) 
-effect.self().onApply()
-
 # Smooth the right myocardium segment slightly 
 segmentEditorWidget.setActiveEffectByName("Smoothing")
-segmentEditorNode.SetSelectedSegmentID(rightMyocardiumSegmentID)
-segmentEditorNode.SetSourceVolumeIntensityMask(False)
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+setSegmentEditorNode(segmentEditorNode, rightMyocardiumSegmentID, False, EDITABLE_ANYWHERE)
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("SmoothingMethod", "CLOSING")
 effect.setParameter("KernelSizeMm", (RIGHT_MYOCARDIUM_DEPTH/2)) # TODO: make this mm = 50% of the entire myocardium thickcness?
 effect.self().onApply()
 
-segmentEditorNode.SetSourceVolumeIntensityMask(False) # Median smoothing anywhere
 effect.setParameter("SmoothingMethod", "MEDIAN")
 effect.setParameter("KernelSizeMm", (RIGHT_MYOCARDIUM_DEPTH/2))
 effect.self().onApply()
@@ -315,37 +300,28 @@ print("Finished segmenting right myocardium")
 ### Improving the segmentation of the left myocardium ####
 
 # Grow the left myocardium segment so it covers more of the left muscle
-# # Set Editor Widget to the Margin effect 
-# segmentEditorWidget.setActiveEffectByName("Margin")
-# # Set the Segment Editor Node to right myocardium segment
-# segmentEditorNode.SetSelectedSegmentID(leftMyocardiumSegmentID) 
-# # Set the Segment Editor node settings
-# # (editable area, editable intensity range, overwrite)
-# segmentEditorNode.SetSourceVolumeIntensityMask(True)
-# segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
-# segmentEditorNode.SetMaskMode(EDITABLE_OUTSIDE_ALL_SEGMENTS) # Set to editable area is outside all segments
-# segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+# Set Editor Widget to the Margin effect 
+segmentEditorWidget.setActiveEffectByName("Margin")
+setSegmentEditorNode(segmentEditorNode, leftMyocardiumSegmentID, True, EDITABLE_OUTSIDE_ALL_SEGMENTS,
+                     MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
 
-# # use Segment Editor effects to grow the left myocardium segment # TODO: grow size?
-# effect = segmentEditorWidget.activeEffect()
-# effect.setParameter("MarginSizeMm", LEFT_MYOCARDIUM_DEPTH)
-# effect.self().onApply()
+# use Segment Editor effects to grow the left myocardium segment # TODO: grow size?
+effect = segmentEditorWidget.activeEffect()
+effect.setParameter("MarginSizeMm", LEFT_MYOCARDIUM_DEPTH)
+effect.self().onApply()
 
+# Smooth the left myocardium segment slightly # TODO: remove this if it is unhelpful
+segmentEditorWidget.setActiveEffectByName("Smoothing")
+setSegmentEditorNode(segmentEditorNode, leftMyocardiumSegmentID, False, EDITABLE_ANYWHERE)
 
-# # Smooth the left myocardium segment slightly # TODO: remove this if it is unhelpful
-# segmentEditorWidget.setActiveEffectByName("Smoothing")
-# segmentEditorNode.SetSelectedSegmentID(leftMyocardiumSegmentID)
-# segmentEditorNode.SetSourceVolumeIntensityMask(False)
+effect = segmentEditorWidget.activeEffect()
+effect.setParameter("SmoothingMethod", "CLOSING")
+effect.setParameter("KernelSizeMm", LEFT_MYOCARDIUM_DEPTH/2) # TODO: adjust size
+effect.self().onApply()
 
-# effect = segmentEditorWidget.activeEffect()
-# effect.setParameter("SmoothingMethod", "CLOSING")
-# effect.setParameter("KernelSizeMm", LEFT_MYOCARDIUM_DEPTH/2) # TODO: adjust size
-# effect.self().onApply()
-
-# segmentEditorNode.SetSourceVolumeIntensityMask(False) # Median smoothing anywhere
-# effect.setParameter("SmoothingMethod", "MEDIAN")
-# effect.setParameter("KernelSizeMm", LEFT_MYOCARDIUM_DEPTH/2) # TODO: adjust size
-# effect.self().onApply()
+effect.setParameter("SmoothingMethod", "MEDIAN")
+effect.setParameter("KernelSizeMm", LEFT_MYOCARDIUM_DEPTH/2) # TODO: adjust size
+effect.self().onApply()
 
 # Use Hollow effect on left ventricle, then union to left myocardium to make it a closed loop
 # Create temporary segment for the hollowed left ventricle
@@ -355,10 +331,7 @@ tempSegmentID = segmentation.AddEmptySegment("hollow-left-ventricle", "hollow", 
 unionSegments(segmentEditorWidget, segmentEditorNode, leftVentricleSegmentID, tempSegmentID)
 
 segmentEditorWidget.setActiveEffectByName("Hollow")
-segmentEditorNode.SetSelectedSegmentID(tempSegmentID)
-segmentEditorNode.SetSourceVolumeIntensityMask(False)
-segmentEditorNode.SetMaskMode(EDITABLE_ANYWHERE) # Set to editable area anywhere
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+setSegmentEditorNode(segmentEditorNode, tempSegmentID, False, EDITABLE_ANYWHERE)
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("ApplyToAllVisibleSegments", 0)
@@ -370,16 +343,11 @@ effect.self().onApply()
 unionSegments(segmentEditorWidget, segmentEditorNode, tempSegmentID, leftMyocardiumSegmentID)
 
 
-
-
 #### Segmenting the scar tissue ####
 
 # Segment the General scar tissue using threshold
 segmentEditorWidget.setActiveEffectByName("Threshold") # TODO: make a helper function for this mask parameter setting given the node
-segmentEditorNode.SetSourceVolumeIntensityMask(False)
-segmentEditorNode.SetMaskMode(EDITABLE_ANYWHERE) # Set to editable area anywhere
-segmentEditorNode.SetSelectedSegmentID(scarSegmentID) # change selected segment to the General Scar segment
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone) # allow overlap with other segments
+setSegmentEditorNode(segmentEditorNode, scarSegmentID, False, EDITABLE_ANYWHERE)
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("MinimumThreshold", str(MIN_SCAR_THRESHOLD_VALUE))
@@ -394,10 +362,7 @@ unionSegments(segmentEditorWidget, segmentEditorNode, pleuralEffusionSegmentID, 
 
 # Use the Hollow tool to draw the border of the heart tissue using the Pleural Effusion segment
 segmentEditorWidget.setActiveEffectByName("Hollow")
-segmentEditorNode.SetSourceVolumeIntensityMask(False)
-segmentEditorNode.SetMaskMode(EDITABLE_ANYWHERE) # Set to editable area anywhere
-segmentEditorNode.SetSelectedSegmentID(borderSegmentID) # change selected segment to the General Scar segment
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone) # allow overlap with other segments
+setSegmentEditorNode(segmentEditorNode, borderSegmentID, False, EDITABLE_ANYWHERE)
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("ShellThicknessMm", "4.0") # TODO: magic number
@@ -406,17 +371,11 @@ effect.setParameter("ApplyToAllVisibleSegments", "0")
 effect.self().onApply()
 
 
-
-
 # Subtract the Border from the Scar segment (Scar = Scar - Border)
 # TODO
 # Set Editor Widget to the Logical Operators effect 
 segmentEditorWidget.setActiveEffectByName("Logical operators")
-# Set the Segment Editor Node to general Scar segment
-segmentEditorNode.SetSelectedSegmentID(scarSegmentID) 
-segmentEditorNode.SetSourceVolumeIntensityMask(False)
-segmentEditorNode.SetMaskMode(EDITABLE_ANYWHERE) # Set to editable area anywhere
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+setSegmentEditorNode(segmentEditorNode, scarSegmentID, False, EDITABLE_ANYWHERE)
 
 # Use Subtract to take out the border from the scar segment
 effect = segmentEditorWidget.activeEffect()
@@ -436,11 +395,8 @@ intersectSegments(scarSegmentID, rightScarSegmentID)
 # Smooth the right scar segment slightly # TODO: remove this if it is unhelpful
 # TODO: make a smoothing function, with segmentID, mask thresholds, and type of smoothing as parameters, to avoid repeating code
 segmentEditorWidget.setActiveEffectByName("Smoothing")
-segmentEditorNode.SetSelectedSegmentID(rightScarSegmentID)
-segmentEditorNode.SetSourceVolumeIntensityMask(True)
-segmentEditorNode.SetMaskMode(EDITABLE_ANYWHERE) # Set to editable area anywhere
-segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+setSegmentEditorNode(segmentEditorNode, rightScarSegmentID, True, EDITABLE_ANYWHERE, 
+                     MIN_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("SmoothingMethod", "CLOSING")
@@ -454,11 +410,8 @@ effect.self().onApply()
 
 # Smooth the LEFT scar segment slightly 
 segmentEditorWidget.setActiveEffectByName("Smoothing")
-segmentEditorNode.SetSelectedSegmentID(leftScarSegmentID)
-segmentEditorNode.SetSourceVolumeIntensityMask(True)
-segmentEditorNode.SetMaskMode(EDITABLE_ANYWHERE) # Set to editable area anywhere
-segmentEditorNode.SetSourceVolumeIntensityMaskRange(MIN_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
-segmentEditorNode.SetOverwriteMode(slicer.vtkMRMLSegmentEditorNode.OverwriteNone)
+setSegmentEditorNode(segmentEditorNode, leftScarSegmentID, True, EDITABLE_ANYWHERE, 
+                     MIN_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("SmoothingMethod", "CLOSING")
