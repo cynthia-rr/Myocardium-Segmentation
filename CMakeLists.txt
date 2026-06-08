@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.20.6...3.22.6 FATAL_ERROR)
 
-project(MyFirstExtension)
+project(MyocardiumSegmentation)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "https://www.slicer.org/wiki/Documentation/Nightly/Extensions/MyFirstExtension")
-set(EXTENSION_CONTRIBUTORS "John Doe (AnyWare Corp.)")
-set(EXTENSION_DESCRIPTION "This is an example of a simple extension")
-set(EXTENSION_ICONURL "https://www.example.com/Slicer/Extensions/MyFirstExtension.png")
-set(EXTENSION_SCREENSHOTURLS "https://www.example.com/Slicer/Extensions/MyFirstExtension/Screenshots/1.png")
+set(EXTENSION_HOMEPAGE "https://www.slicer.org/wiki/Documentation/Nightly/Extensions/MyocardiumSegmentation")
+set(EXTENSION_CONTRIBUTORS "Cynthia Rong (Lawson Research)")
+set(EXTENSION_DESCRIPTION "Segmenting the left and right myocardium, as well as the scar tissue.")
+set(EXTENSION_ICONURL "https://www.example.com/Slicer/Extensions/MyocardiumSegmentation.png")
+set(EXTENSION_SCREENSHOTURLS "https://www.example.com/Slicer/Extensions/MyocardiumSegmentation/Screenshots/1.png")
 set(EXTENSION_DEPENDS "NA") # Specified as a list or "NA" if no dependencies
 
 #-----------------------------------------------------------------------------
@@ -18,7 +18,7 @@ include(${Slicer_USE_FILE})
 
 #-----------------------------------------------------------------------------
 # Extension modules
-add_subdirectory(MyFirstModule)
+add_subdirectory(MyocardiumSegmentation)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
