@@ -42,18 +42,18 @@ def load_segmentation(segmentation_path: Path, name: str) -> slicer.vtkMRMLSegme
     if segmentation_node is None:
         raise RuntimeError("Unable to load the segmentation.")
     # Set the name of the segmentation node
-    segmentation_node.setName(name)
+    segmentation_node.SetName(name)
     return segmentation_node
 
 # TODO: create a new class, return that class instead of a dictionary?
 def load_totalsegmentator_segmentations(save_folder: Path, chambers_filename: str, effusion_filename: str, 
-                                        artery_filename: str, tissue_filename: str) -> dict[str, slicer.ctkMRMLSegmentationNode]:
+                                        artery_filename: str, tissue_filename: str) -> dict[str, slicer.vtkMRMLSegmentationNode]:
      """
      Load the segmentation nodes from TotalSegmentator with the filename, return a dictionary from name to segmentation node.
      """
 
      return { # TODO: chambers file name constant
-         "chambers": load_segmentation(save_folder / chambers_filename, "Myocardium-Segmentation"),
+         "chambers": load_segmentation(save_folder / chambers_filename, "Chambers-Segmentation"),
         "effusion": load_segmentation(save_folder / effusion_filename, "Effusion-Segmentation"),
         "artery": load_segmentation(save_folder / artery_filename, "Artery-Segmentation"),
         "tissue": load_segmentation(save_folder / tissue_filename, "Tissue-Segmentation")
@@ -69,7 +69,7 @@ def export_segment_to_labelmap(segmentation_node: slicer.vtkMRMLSegmentationNode
     slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentation_node, [segment_id], labelmap_node, volume_node)
     return labelmap_node
 
-def import_labelmap_to_segmentation(labelmap_node: slicer.vtkMRMLLabelmapVolumeNode, segmentation_node: slicer.vtkMRMLSegmentatioNode) -> str:
+def import_labelmap_to_segmentation(labelmap_node: slicer.vtkMRMLLabelMapVolumeNode, segmentation_node: slicer.vtkMRMLSegmentationNode) -> str:
     """
     Import a labelmap into a segment, and return the new segment ID.
     """
@@ -100,7 +100,7 @@ def remove_nodes(*nodes) -> None:
 ##############################################################################################################
 
 
-
+"""
 
 # Adjust volume display settings including window and level 
 # # TODO: move this to the end with the other visibility things?
@@ -158,3 +158,4 @@ segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
 segmentEditorWidget.setSegmentationNode(segmentationChambersNode)
 segmentEditorWidget.setSourceVolumeNode(volumeNode)
 
+"""
