@@ -39,7 +39,4 @@ Fork this repository, then open in a code editor (Visual Studio Code).
 Total Segmentator
 nnUNet
 
-# License
-
-
 
