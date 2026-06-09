@@ -1,7 +1,6 @@
 # Constants for segmentation parameters and settings
 from pathlib import Path
 
-PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/s0738/ct.nii.gz"
 PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CCTA"
 PATH_FOR_SAVE = Path.home() / "Documents/sjhc/extension-repo/python-script/segmentations"
 

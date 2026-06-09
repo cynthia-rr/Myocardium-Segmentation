@@ -84,7 +84,7 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     spacing = spacingXYZ[::-1]
 
     print("done converting to numpy")
-    # Find bounding box of myocardium
+    # Find bounding box of myocardium by finding the coordinates that are non-zero
     coords = np.argwhere(myocardiumArray)
 
     if len(coords) == 0:
@@ -94,7 +94,7 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     zmax, ymax, xmax = coords.max(axis=0)
 
     # Add padding so the EDT can see the boundaries properly
-    pad = 20
+    pad = 50 # TODO: magic number
 
     zmin = max(0, zmin - pad)
     ymin = max(0, ymin - pad)
@@ -122,7 +122,8 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
 
     # Calculate wall depth
     wallDepth = distanceEndocardium / (distanceEndocardium + distanceEpicardium + 1e-6) # to prevent division by 0
-    wallDepth = scipy.ndimage.gaussian_filter(wallDepth, sigma=1.0)
+    wallDepth = np.nan_to_num(wallDepth, nan=0.0, posinf=1.0, neginf=0.0)
+    wallDepth = np.clip(wallDepth, 0.0, 1.0)
     
     print("calculate wall depth")
 
@@ -134,7 +135,13 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     innerMask = (myocardiumCrop & (wallDepth < innerLimit)) 
     middleMask = (myocardiumCrop & (wallDepth >= innerLimit) & (wallDepth < middleLimit))
     outerMask = (myocardiumCrop & (wallDepth >= middleLimit))
-    innerMask = scipy.ndimage.binary_closing(innerMask, iterations=1)
+    # innerMask = scipy.ndimage.binary_closing(innerMask, iterations=1)
+
+    print("myocardium:", myocardiumCrop.sum()) # TODO: so i think the problem is in the myocariudm crop
+    print("inner:", innerMask.sum())
+    print("middle:", middleMask.sum())
+    print("outer:", outerMask.sum())
+    print("union:", (innerMask | middleMask | outerMask).sum())
 
     # Convert masks to images
     innerImage = sitk.GetImageFromArray(innerMask.astype(np.uint8))
@@ -142,7 +149,6 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     outerImage = sitk.GetImageFromArray(outerMask.astype(np.uint8))
 
     # Copy geometry
-    referenceCrop = myocardiumImage
     referenceCrop = sitk.RegionOfInterest(myocardiumImage,
                                           size=[int(xmax-xmin), int(ymax-ymin), int(zmax-zmin)],
                                           index=[int(xmin), int(ymin), int(zmin)])
@@ -150,6 +156,7 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     innerImage.CopyInformation(referenceCrop)
     middleImage.CopyInformation(referenceCrop)
     outerImage.CopyInformation(referenceCrop)
+
 
     # Push to Slicer
     innerLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "InnerLayerLabelmap")
@@ -184,7 +191,7 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
 
     return innerID, middleID, outerID # Return segment IDs
 
-
+"""
 def divideMyocardium2(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: slicer.vtkMRMLScalarVolumeNode,
                       segmentationChambersNode: slicer.vtkMRMLSegmentationNode, myocardiumSegmentID: str,
                       ventricleSegmentID: str) -> tuple[str, str, str]:
@@ -322,7 +329,7 @@ def divideMyocardium2(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: 
     # slicer.mrmlScene.RemoveNode(myocardiumLabelmap)
     # slicer.mrmlScene.RemoveNode(ventricleLabelmap)
 
-    return innerID, middleID, outerID
+    return innerID, middleID, outerID"""
 
 # Make the Myocardium (left, right) and Scar (left, right) segments visible, hide the rest
 # and show the centred 3D view of the segments
@@ -629,8 +636,13 @@ print("Finished segmenting scar tissue")
 # setSegmentsVisibility(segmentationChambersNode, segmentation, [leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, 
 #                                                             leftMyocardiumOuterSegmentID, rightMyocardiumSegmentID, 
 #                                                             leftScarSegmentID, rightScarSegmentID])
+setSegmentsVisibility(segmentationChambersNode, segmentation, [leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, 
+                                                            leftMyocardiumOuterSegmentID, rightMyocardiumSegmentID, 
+                                                            leftScarSegmentID, rightScarSegmentID])
+
 segmentationEffusionNode.GetDisplayNode().SetAllSegmentsVisibility(False)
 segmentationArteryNode.GetDisplayNode().SetAllSegmentsVisibility(False)
+segmentationTissueNode.GetDisplayNode().SetAllSegmentsVisibility(False)
 
 print("Done segmentation!")
 
