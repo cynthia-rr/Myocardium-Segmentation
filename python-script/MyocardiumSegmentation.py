@@ -83,23 +83,28 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     spacingXYZ = myocardiumImage.GetSpacing()
     spacing = spacingXYZ[::-1]
 
+    print("done converting to numpy")
     # Make endocardial and epicardial surfaces 
-    endocardiumSurface = (scipy.ndimage.binary_dilation(ventricleArray) & myocardiumArray)
-    epicardiumSurface = (~scipy.ndimage.binary_erosion(myocardiumArray) & myocardiumArray)
+    # endocardiumSurface = (scipy.ndimage.binary_dilation(ventricleArray) & myocardiumArray)
+    # epicardiumSurface = (~scipy.ndimage.binary_erosion(myocardiumArray) & myocardiumArray)
 
 
     # Calculate distance to endocardium and epicardium
     distanceEndocardium = scipy.ndimage.distance_transform_edt(~ventricleArray, sampling=spacing)
     distanceEpicardium = scipy.ndimage.distance_transform_edt(myocardiumArray, sampling=spacing)
     
+    print("done calculating distance")
 
     # Restrict to myocardium only
     distanceEndocardium = np.abs(distanceEndocardium)
     distanceEpicardium = np.maximum(distanceEpicardium, 0)
 
+    print(distanceEndocardium, distanceEpicardium)
+
     # Calculate wall depth
     wallDepth = distanceEndocardium / (distanceEndocardium + distanceEpicardium + 1e-6) # to prevent division by 0
     wallDepth = scipy.ndimage.gaussian_filter(wallDepth, sigma=1.0)
+    print("calculate wall depth")
 
     # Calculate percentile for inner layer, middle layer
     innerLimit = np.percentile(wallDepth[myocardiumArray], INNER_MYOCARDIUM_LIMIT)
@@ -126,11 +131,13 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     middleLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "MiddleLayerLabelmap")
     outerLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "OuterLayerLabelmap")
 
+
     sitkUtils.PushVolumeToSlicer(innerImage, innerLabelmap)
     sitkUtils.PushVolumeToSlicer(middleImage, middleLabelmap)
     sitkUtils.PushVolumeToSlicer(outerImage, outerLabelmap)
 
-    # Rename imported segments # TODO: idk fixx this, is the label map empty?
+    print("push to slicer")
+    # Rename imported segments 
     innerID = importLabelmap(innerLabelmap)
     middleID = importLabelmap(middleLabelmap)
     outerID = importLabelmap(outerLabelmap)
@@ -316,18 +323,22 @@ effect = segmentEditorWidget.activeEffect()
 effect.setParameter("MarginSizeMm", LEFT_MYOCARDIUM_DEPTH)
 effect.self().onApply()
 
+print("Grew left myocardium")
+
 # Smooth the left myocardium segment slightly 
 segmentEditorWidget.setActiveEffectByName("Smoothing")
 setSegmentEditorNode(segmentEditorNode, leftMyocardiumSegmentID, False, EDITABLE_ANYWHERE)
 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("SmoothingMethod", "CLOSING")
-effect.setParameter("KernelSizeMm", LEFT_MYOCARDIUM_DEPTH/2) # TODO: adjust size
+effect.setParameter("KernelSizeMm", 1) # TODO: adjust size
 effect.self().onApply()
 
 effect.setParameter("SmoothingMethod", "MEDIAN")
-effect.setParameter("KernelSizeMm", LEFT_MYOCARDIUM_DEPTH/2) # TODO: adjust size
+effect.setParameter("KernelSizeMm", 1) # TODO: adjust size
 effect.self().onApply()
+
+print("done smoothing left myocardium")
 
 # Use Hollow effect on left ventricle, then union to left myocardium to make it a closed loop
 # Create temporary segment for the hollowed left ventricle
@@ -348,13 +359,17 @@ effect.self().onApply()
 # Union left myocardium with the shell of the left ventricle to make a closed loop
 unionSegments(segmentEditorWidget, segmentEditorNode, tempSegmentID, leftMyocardiumSegmentID)
 
+
+
 # TODO: divide myocaridum into 3 layers
 # TODO: change this to be adaptive so it doesn't break if the naming changes
 leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, leftMyocardiumOuterSegmentID = divideMyocardium(
     segmentation, volumeNode, segmentationChambersNode, leftMyocardiumSegmentID, leftVentricleSegmentID)
 
-#### Segmenting the scar tissue ####
+print("after dividing")
 
+#### Segmenting the scar tissue ####
+"""
 # Segment the General scar tissue using threshold
 segmentEditorWidget.setActiveEffectByName("Threshold") # TODO: make a helper function for this mask parameter setting given the node
 setSegmentEditorNode(segmentEditorNode, scarSegmentID, False, EDITABLE_ANYWHERE)
@@ -363,6 +378,8 @@ effect = segmentEditorWidget.activeEffect()
 effect.setParameter("MinimumThreshold", str(MIN_SCAR_THRESHOLD_VALUE))
 effect.setParameter("MaximumThreshold", str(MAX_SCAR_THRESHOLD_VALUE))
 effect.self().onApply()
+
+print("after threshold")
 
 # Ensure that the dark border around the left/right myocardium is not mistakenly included in the General scar
 # Copy the Pleural Effusion segment from the Pleural/Pericardial Effusion segmentation to the Myocardium-Segmentation
@@ -440,7 +457,7 @@ effect.self().onApply()
 # TODO: fix the magic numbers
 effect.setParameter("SmoothingMethod", "OPENING")
 effect.setParameter("KernelSizeMm", "1.2")
-effect.self().onApply()
+effect.self().onApply()"""
 
 print("Finished segmenting scar tissue")
 
