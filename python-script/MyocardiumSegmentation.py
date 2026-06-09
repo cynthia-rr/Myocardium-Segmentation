@@ -80,18 +80,39 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     
     myocardiumArray = sitk.GetArrayFromImage(myocardiumImage).astype(bool)
     ventricleArray = sitk.GetArrayFromImage(ventricleImage).astype(bool)
-    spacingXYZ = myocardiumImage.GetSpacing()
+    spacingXYZ = myocardiumImage.GetSpacing() # TODO: spacing?
     spacing = spacingXYZ[::-1]
 
     print("done converting to numpy")
-    # Make endocardial and epicardial surfaces 
-    # endocardiumSurface = (scipy.ndimage.binary_dilation(ventricleArray) & myocardiumArray)
-    # epicardiumSurface = (~scipy.ndimage.binary_erosion(myocardiumArray) & myocardiumArray)
+    # Find bounding box of myocardium
+    coords = np.argwhere(myocardiumArray)
 
+    if len(coords) == 0:
+        raise RuntimeError("Myocardium segmentation is empty")
+
+    zmin, ymin, xmin = coords.min(axis=0)
+    zmax, ymax, xmax = coords.max(axis=0)
+
+    # Add padding so the EDT can see the boundaries properly
+    pad = 20
+
+    zmin = max(0, zmin - pad)
+    ymin = max(0, ymin - pad)
+    xmin = max(0, xmin - pad)
+
+    zmax = min(myocardiumArray.shape[0], zmax + pad)
+    ymax = min(myocardiumArray.shape[1], ymax + pad)
+    xmax = min(myocardiumArray.shape[2], xmax + pad)
+
+    # Crop arrays
+    myocardiumCrop = myocardiumArray[zmin:zmax, ymin:ymax, xmin:xmax]
+    ventricleCrop = ventricleArray[zmin:zmax, ymin:ymax, xmin:xmax]
+
+    print("cropped shape")
 
     # Calculate distance to endocardium and epicardium
-    distanceEndocardium = scipy.ndimage.distance_transform_edt(~ventricleArray, sampling=spacing)
-    distanceEpicardium = scipy.ndimage.distance_transform_edt(myocardiumArray, sampling=spacing)
+    distanceEndocardium = scipy.ndimage.distance_transform_edt(~ventricleCrop, sampling=spacing)
+    distanceEpicardium = scipy.ndimage.distance_transform_edt(myocardiumCrop, sampling=spacing)
     
     print("done calculating distance")
 
@@ -99,21 +120,20 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     distanceEndocardium = np.abs(distanceEndocardium)
     distanceEpicardium = np.maximum(distanceEpicardium, 0)
 
-    print(distanceEndocardium, distanceEpicardium)
-
     # Calculate wall depth
     wallDepth = distanceEndocardium / (distanceEndocardium + distanceEpicardium + 1e-6) # to prevent division by 0
     wallDepth = scipy.ndimage.gaussian_filter(wallDepth, sigma=1.0)
+    
     print("calculate wall depth")
 
     # Calculate percentile for inner layer, middle layer
-    innerLimit = np.percentile(wallDepth[myocardiumArray], INNER_MYOCARDIUM_LIMIT)
-    middleLimit = np.percentile(wallDepth[myocardiumArray], MIDDLE_MYOCARDIUM_LIMIT)
+    innerLimit = np.percentile(wallDepth[myocardiumCrop], INNER_MYOCARDIUM_LIMIT)
+    middleLimit = np.percentile(wallDepth[myocardiumCrop], MIDDLE_MYOCARDIUM_LIMIT)
 
     # Create masks for the 3 segments 
-    innerMask = (myocardiumArray & (wallDepth < innerLimit)) 
-    middleMask = (myocardiumArray & (wallDepth >= innerLimit) & (wallDepth < middleLimit))
-    outerMask = (myocardiumArray & (wallDepth >= middleLimit))
+    innerMask = (myocardiumCrop & (wallDepth < innerLimit)) 
+    middleMask = (myocardiumCrop & (wallDepth >= innerLimit) & (wallDepth < middleLimit))
+    outerMask = (myocardiumCrop & (wallDepth >= middleLimit))
     innerMask = scipy.ndimage.binary_closing(innerMask, iterations=1)
 
     # Convert masks to images
@@ -122,9 +142,14 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     outerImage = sitk.GetImageFromArray(outerMask.astype(np.uint8))
 
     # Copy geometry
-    innerImage.CopyInformation(myocardiumImage)
-    middleImage.CopyInformation(myocardiumImage)
-    outerImage.CopyInformation(myocardiumImage)
+    referenceCrop = myocardiumImage
+    referenceCrop = sitk.RegionOfInterest(myocardiumImage,
+                                          size=[int(xmax-xmin), int(ymax-ymin), int(zmax-zmin)],
+                                          index=[int(xmin), int(ymin), int(zmin)])
+
+    innerImage.CopyInformation(referenceCrop)
+    middleImage.CopyInformation(referenceCrop)
+    outerImage.CopyInformation(referenceCrop)
 
     # Push to Slicer
     innerLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "InnerLayerLabelmap")
@@ -151,13 +176,153 @@ def divideMyocardium(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: s
     segmentation.GetSegment(outerID).SetColor(COLOUR_LIGHT_BLUE)
 
     # Remove temporary labelmaps
-    slicer.mrmlScene.RemoveNode(innerLabelmap)
-    slicer.mrmlScene.RemoveNode(middleLabelmap)
-    slicer.mrmlScene.RemoveNode(outerLabelmap)
-    slicer.mrmlScene.RemoveNode(myocardiumLabelmap)
-    slicer.mrmlScene.RemoveNode(ventricleLabelmap)
+    # slicer.mrmlScene.RemoveNode(innerLabelmap)
+    # slicer.mrmlScene.RemoveNode(middleLabelmap)
+    # slicer.mrmlScene.RemoveNode(outerLabelmap)
+    # slicer.mrmlScene.RemoveNode(myocardiumLabelmap)
+    # slicer.mrmlScene.RemoveNode(ventricleLabelmap)
 
     return innerID, middleID, outerID # Return segment IDs
+
+
+def divideMyocardium2(segmentation: slicer.vtkMRMLSegmentationNode, volumeNode: slicer.vtkMRMLScalarVolumeNode,
+                      segmentationChambersNode: slicer.vtkMRMLSegmentationNode, myocardiumSegmentID: str,
+                      ventricleSegmentID: str) -> tuple[str, str, str]:
+
+    # Export myocardium to myocardiumlabel map
+    myocardiumLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "MyocardiumLabelMap")
+    slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentationChambersNode, [str(myocardiumSegmentID)],
+                                                                      myocardiumLabelmap, volumeNode)
+    
+    # Export left ventricle segment to ventricle label map
+    ventricleLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "VentricleLabelMap")
+    slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentationChambersNode, [str(ventricleSegmentID)], 
+                                                                      ventricleLabelmap, volumeNode)
+
+    # Convert from label map to numpy
+    myocardiumImage = sitkUtils.PullVolumeFromSlicer(myocardiumLabelmap)
+    ventricleImage = sitkUtils.PullVolumeFromSlicer(ventricleLabelmap)
+    
+    myocardiumArray = sitk.GetArrayFromImage(myocardiumImage).astype(bool)
+    ventricleArray = sitk.GetArrayFromImage(ventricleImage).astype(bool)
+    # Convert the spacing to the right format
+    spacingXYZ = myocardiumImage.GetSpacing()
+    spacing = tuple(float(x) for x in spacingXYZ[::-1])
+
+    print("done converting to numpy")
+
+    # Crop to myocardium ROI to save processing power
+
+    coords = np.argwhere(myocardiumArray)
+
+    if len(coords) == 0:
+        raise RuntimeError("Myocardium segmentation is empty")
+
+    zmin, ymin, xmin = coords.min(axis=0)
+    zmax, ymax, xmax = coords.max(axis=0)
+
+    pad = 50 # TODO magic number
+
+    zmin = max(0, zmin - pad)
+    ymin = max(0, ymin - pad)
+    xmin = max(0, xmin - pad)
+
+    zmax = min(myocardiumArray.shape[0], zmax + pad)
+    ymax = min(myocardiumArray.shape[1], ymax + pad)
+    xmax = min(myocardiumArray.shape[2], xmax + pad)
+
+    myocardiumCrop = myocardiumArray[zmin:zmax, ymin:ymax, xmin:xmax]
+    ventricleCrop = ventricleArray[zmin:zmax, ymin:ymax, xmin:xmax]
+
+    # Make distance transforms
+    distanceEndocardium = scipy.ndimage.distance_transform_edt(~ventricleCrop, sampling=spacing)
+    distanceEpicardium = scipy.ndimage.distance_transform_edt(~myocardiumCrop, sampling=spacing)
+
+    # Wall depth calculation
+    wallDepthCrop = distanceEndocardium / (distanceEndocardium + distanceEpicardium + 1e-6)
+    wallDepthCrop = scipy.ndimage.gaussian_filter(wallDepthCrop)
+    wallDepthCrop = np.nan_to_num(wallDepthCrop, nan=0.0, posinf=0.0, neginf=0.0)
+    wallDepthCrop = np.clip(wallDepthCrop, 0.0, 1.0)
+
+    # Calculate inner, middle, outer layer bounds
+    innerLimit = np.percentile(wallDepthCrop[myocardiumCrop], INNER_MYOCARDIUM_LIMIT)
+    middleLimit = np.percentile(wallDepthCrop[myocardiumCrop], MIDDLE_MYOCARDIUM_LIMIT)
+
+    # Create cropped masks
+    innerCrop = (myocardiumCrop & (wallDepthCrop < innerLimit))
+    middleCrop = (myocardiumCrop & (wallDepthCrop >= innerLimit) & (wallDepthCrop < middleLimit))
+    outerCrop = myocardiumCrop & ~(innerCrop | middleCrop)
+
+    # Smooth the masks # TODO : delete
+    # innerCrop = scipy.ndimage.binary_opening(innerCrop)
+    # innerCrop = scipy.ndimage.binary_closing(innerCrop)
+    # middleCrop = scipy.ndimage.binary_opening(middleCrop)
+    # outerCrop = scipy.ndimage.binary_opening(outerCrop)
+
+    innerCrop = innerCrop & myocardiumCrop
+    middleCrop = middleCrop & myocardiumCrop
+    outerCrop = outerCrop & myocardiumCrop
+
+    combined = innerCrop | middleCrop | outerCrop
+    print("myocardium voxels:", myocardiumCrop.sum())
+    print("combined voxels:", combined.sum())
+    print("missing voxels:", (myocardiumCrop & ~combined).sum())
+    print("extra voxels:", (combined & ~myocardiumCrop).sum())
+
+    # Expand masks back to original volume size
+    innerMask = np.zeros_like(myocardiumArray, dtype=bool)
+    middleMask = np.zeros_like(myocardiumArray, dtype=bool)
+    outerMask = np.zeros_like(myocardiumArray, dtype=bool)
+
+    innerMask[zmin:zmax, ymin:ymax, xmin:xmax] = innerCrop
+    middleMask[zmin:zmax, ymin:ymax, xmin:xmax] = middleCrop
+    outerMask[zmin:zmax, ymin:ymax, xmin:xmax] = outerCrop
+
+    print("created layer masks")
+
+    # Convert masks back to images
+    innerImage = sitk.GetImageFromArray(innerMask.astype(np.uint8))
+    middleImage = sitk.GetImageFromArray(middleMask.astype(np.uint8))
+    outerImage = sitk.GetImageFromArray(outerMask.astype(np.uint8))
+
+    innerImage.CopyInformation(myocardiumImage)
+    middleImage.CopyInformation(myocardiumImage)
+    outerImage.CopyInformation(myocardiumImage)
+
+    # Push back to Slicer
+    innerLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "InnerLayerLabelmap")
+    middleLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "MiddleLayerLabelmap")
+    outerLabelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "OuterLayerLabelmap")
+
+    sitkUtils.PushVolumeToSlicer(innerImage, innerLabelmap)
+    sitkUtils.PushVolumeToSlicer(middleImage, middleLabelmap)
+    sitkUtils.PushVolumeToSlicer(outerImage, outerLabelmap)
+
+    print("push to slicer")
+
+    # Import into segmentation
+
+    innerID = importLabelmap(innerLabelmap)
+    middleID = importLabelmap(middleLabelmap)
+    outerID = importLabelmap(outerLabelmap)
+
+    segmentation.GetSegment(innerID).SetName("left myocardium inner")
+    segmentation.GetSegment(middleID).SetName("left myocardium middle")
+    segmentation.GetSegment(outerID).SetName("left myocardium outer")
+
+    segmentation.GetSegment(innerID).SetColor(COLOUR_PURPLE)
+    segmentation.GetSegment(middleID).SetColor(COLOUR_GREEN)
+    segmentation.GetSegment(outerID).SetColor(COLOUR_LIGHT_BLUE)
+
+    # Cleanup
+    # slicer.mrmlScene.RemoveNode(innerLabelmap)
+    # slicer.mrmlScene.RemoveNode(middleLabelmap)
+    # slicer.mrmlScene.RemoveNode(outerLabelmap)
+
+    # slicer.mrmlScene.RemoveNode(myocardiumLabelmap)
+    # slicer.mrmlScene.RemoveNode(ventricleLabelmap)
+
+    return innerID, middleID, outerID
 
 # Make the Myocardium (left, right) and Scar (left, right) segments visible, hide the rest
 # and show the centred 3D view of the segments
@@ -321,7 +486,7 @@ setSegmentEditorNode(segmentEditorNode, leftMyocardiumSegmentID, True, EDITABLE_
 # use Segment Editor effects to grow the left myocardium segment 
 effect = segmentEditorWidget.activeEffect()
 effect.setParameter("MarginSizeMm", LEFT_MYOCARDIUM_DEPTH)
-effect.self().onApply()
+# effect.self().onApply() # TODO: remove left growing?
 
 print("Grew left myocardium")
 
@@ -359,8 +524,6 @@ effect.self().onApply()
 # Union left myocardium with the shell of the left ventricle to make a closed loop
 unionSegments(segmentEditorWidget, segmentEditorNode, tempSegmentID, leftMyocardiumSegmentID)
 
-
-
 # TODO: divide myocaridum into 3 layers
 # TODO: change this to be adaptive so it doesn't break if the naming changes
 leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, leftMyocardiumOuterSegmentID = divideMyocardium(
@@ -369,7 +532,7 @@ leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, leftMyocardiumOuter
 print("after dividing")
 
 #### Segmenting the scar tissue ####
-"""
+
 # Segment the General scar tissue using threshold
 segmentEditorWidget.setActiveEffectByName("Threshold") # TODO: make a helper function for this mask parameter setting given the node
 setSegmentEditorNode(segmentEditorNode, scarSegmentID, False, EDITABLE_ANYWHERE)
@@ -419,12 +582,12 @@ unionSegments(segmentEditorWidget, segmentEditorNode, rightMyocardiumSegmentID, 
 intersectSegments(scarSegmentID, rightScarSegmentID)
 
 # Fill in the left scar inner, middle, outer segments appropriately
-unionSegments(segmentEditorWidget, segmentEditorNode, leftMyocardiumInnerSegmentID, leftScarInnerSegmentID)
-intersectSegments(scarSegmentID, leftScarInnerSegmentID)
-unionSegments(segmentEditorWidget, segmentEditorNode, leftMyocardiumMiddleSegmentID, leftScarMiddleSegmentID)
-intersectSegments(scarSegmentID, leftScarMiddleSegmentID)
-unionSegments(segmentEditorWidget, segmentEditorNode, leftMyocardiumOuterSegmentID, leftScarOuterSegmentID)
-intersectSegments(scarSegmentID, leftScarOuterSegmentID)
+# unionSegments(segmentEditorWidget, segmentEditorNode, leftMyocardiumInnerSegmentID, leftScarInnerSegmentID)
+# intersectSegments(scarSegmentID, leftScarInnerSegmentID)
+# unionSegments(segmentEditorWidget, segmentEditorNode, leftMyocardiumMiddleSegmentID, leftScarMiddleSegmentID)
+# intersectSegments(scarSegmentID, leftScarMiddleSegmentID)
+# unionSegments(segmentEditorWidget, segmentEditorNode, leftMyocardiumOuterSegmentID, leftScarOuterSegmentID)
+# intersectSegments(scarSegmentID, leftScarOuterSegmentID)
 
 
 
@@ -457,15 +620,15 @@ effect.self().onApply()
 # TODO: fix the magic numbers
 effect.setParameter("SmoothingMethod", "OPENING")
 effect.setParameter("KernelSizeMm", "1.2")
-effect.self().onApply()"""
+effect.self().onApply()
 
 print("Finished segmenting scar tissue")
 
-
+# TODO: make visible
 # Change visibility so that only left myocardium, right myocardium, left scar and right scar are visible
-setSegmentsVisibility(segmentationChambersNode, segmentation, [leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, 
-                                                            leftMyocardiumOuterSegmentID, rightMyocardiumSegmentID, 
-                                                            leftScarSegmentID, rightScarSegmentID])
+# setSegmentsVisibility(segmentationChambersNode, segmentation, [leftMyocardiumInnerSegmentID, leftMyocardiumMiddleSegmentID, 
+#                                                             leftMyocardiumOuterSegmentID, rightMyocardiumSegmentID, 
+#                                                             leftScarSegmentID, rightScarSegmentID])
 segmentationEffusionNode.GetDisplayNode().SetAllSegmentsVisibility(False)
 segmentationArteryNode.GetDisplayNode().SetAllSegmentsVisibility(False)
 
