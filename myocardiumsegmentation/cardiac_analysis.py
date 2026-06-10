@@ -7,7 +7,7 @@ import scipy.ndimage
 
 from constants import *
 from segmentation_utils import *
-#from io_utils import *
+from io_utils import export_segment_to_labelmap, import_labelmap_to_segmentation, remove_nodes
 
 def segment_right_myocardium(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode,
                              right_ventricle_segment_id: str, right_myocardium_segment_id: str) -> None:
@@ -69,9 +69,9 @@ def divide_myocardium(segmentation: slicer.vtkMRMLSegmentationNode, volume_node:
     distance_endocardium = np.abs(distance_endocardium)
     distance_epicardium = np.maximum(distance_epicardium, 0)
 
-    # Calculate wall depth
+    # Calculate wall depth, and smoothing to prevent protrusions
     wall_depth = distance_endocardium / (distance_endocardium + distance_epicardium + 1e-6) # to prevent division by 0
-    wall_depth = scipy.ndimage.gaussian_filter(wall_depth, sigma=1.0) # TODO: magic numbers
+    wall_depth = scipy.ndimage.gaussian_filter(wall_depth, sigma=1.5) # TODO: magic numbers
 
     # Calculate percentile for inner layer, middle layer
     inner_limit = np.percentile(wall_depth[myocardium_array], INNER_MYOCARDIUM_LIMIT)
@@ -103,9 +103,9 @@ def divide_myocardium(segmentation: slicer.vtkMRMLSegmentationNode, volume_node:
     sitkUtils.PushVolumeToSlicer(outer_image, outer_labelmap)
 
     # Rename imported segments
-    inner_id = import_labelmap_to_segmentation(inner_labelmap)
-    middle_id = import_labelmap_to_segmentation(middle_labelmap)
-    outer_id = import_labelmap_to_segmentation(outer_labelmap)
+    inner_id = import_labelmap_to_segmentation(inner_labelmap, segmentation_chambers_node)
+    middle_id = import_labelmap_to_segmentation(middle_labelmap, segmentation_chambers_node)
+    outer_id = import_labelmap_to_segmentation(outer_labelmap, segmentation_chambers_node)
 
     segmentation.GetSegment(inner_id).SetName("left myocardium inner")
     segmentation.GetSegment(middle_id).SetName("left myocardium middle")

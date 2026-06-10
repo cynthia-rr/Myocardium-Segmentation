@@ -13,11 +13,15 @@ def main():
     # Run TotalSegmentator
     # run_totalsegmentator_pipeline(volume_node)
 
+
     # TODO: include the others
     segmentation_chambers_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_CHAMBERS_FILENAME, "Chambers-Segmentation")
     segmentation_effusion_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_EFFUSION_FILENAME, "Effusion-Segmentation")
-
+    # segmentation_artery_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_ARTERY_FILENAME, "Artery-Segmentation")
+    # segmentation_tissue_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_TISSUE_FILENAME, "Tissue-Segmentation")
     
+    print("loaded segmentations")
+
     segmentation = segmentation_chambers_node.GetSegmentation()
 
     # Get key segment IDs (from TotalSegmentator output)
@@ -74,10 +78,12 @@ def main():
                                                       left_myocardium_id, left_ventricle_id)
 
     # Set visibility of segments
-    set_segments_visibility(segmentation_chambers_node, segmentation, [inner_id, middle_id, outer_id, right_myocardium_id])
+    set_segments_visibility(segmentation_chambers_node, segmentation, 
+                            [inner_id, middle_id, outer_id, right_myocardium_id], volume_node)
     segmentation_effusion_node.GetDisplayNode().SetAllSegmentsVisibility(False)
-    segmentation_artery_node.GetDisplayNode().SetAllSegmentsVisibility(False)
+    # segmentation_artery_node.GetDisplayNode().SetAllSegmentsVisibility(False)
 
+    print("Done segmentation!")
 
 
 if __name__ == "__main__":

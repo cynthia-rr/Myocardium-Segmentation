@@ -2,13 +2,13 @@
 from pathlib import Path
 
 PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/s0738/ct.nii.gz"
-PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
+PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CCTA"
 PATH_FOR_SAVE = Path.home() / "Documents/sjhc/extension-repo/python-script/segmentations"
 
-SEGMENTATION_CHAMBERS_FILENAME = "chambers-segmentation.seg.nrrd"
-SEGMENTATION_EFFUSION_FILENAME = "effusion-segmentation.seg.nrrd"
-SEGMENTATION_ARTERY_FILENAME = "artery-segmentation.seg.nrrd"
-SEGMENTATION_TISSUE_FILENAME = "tissue-segmentation.seg.nrrd"
+SEGMENTATION_CHAMBERS_FILENAME = "chambers-segmentation2.seg.nrrd"
+SEGMENTATION_EFFUSION_FILENAME = "effusion-segmentation2.seg.nrrd"
+SEGMENTATION_ARTERY_FILENAME = "artery-segmentation2.seg.nrrd"
+SEGMENTATION_TISSUE_FILENAME = "tissue-segmentation2.seg.nrrd"
 
 SEGMENTATION_QUALITY = "normal"
 SEGMENTATION_CHAMBERS_TASK = "heartchambers_highres"
@@ -29,8 +29,8 @@ MAX_SCAR_THRESHOLD_VALUE = -50
 INNER_MYOCARDIUM_LIMIT = 33
 MIDDLE_MYOCARDIUM_LIMIT = 67
 
-RIGHT_MYOCARDIUM_DEPTH = 4.0
-LEFT_MYOCARDIUM_DEPTH = 4.0
+RIGHT_MYOCARDIUM_DEPTH = 2.0
+LEFT_MYOCARDIUM_DEPTH = 1.0
 # in main script, write if left_myocardium == 0 or < min value from resolution, 
 # then skip the margin step, and adjust smoothing??
 
