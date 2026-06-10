@@ -85,7 +85,7 @@ def import_labelmap_to_segmentation(labelmap_node: slicer.vtkMRMLLabelMapVolumeN
     if len(new_ids) != 1:
         raise RuntimeError("Expected exactly one imported segment.")
 
-    return new_ids[0]
+    return new_ids.pop()
 
 def remove_nodes(*nodes) -> None:
     """
