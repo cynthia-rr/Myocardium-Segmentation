@@ -5,7 +5,7 @@ import sitkUtils
 import numpy as np
 import scipy.ndimage
 
-from constants import *
+from segmentation_constants import *
 from segmentation_utils import *
 from io_utils import export_segment_to_labelmap, import_labelmap_to_segmentation, remove_nodes
 
@@ -14,23 +14,25 @@ def segment_right_myocardium(editor_widget: slicer.qMRMLSegmentEditorWidget, edi
     # TODO: write docstring?
     keep_largest_island(editor_widget, editor_node, right_ventricle_segment_id)
     union_segments(editor_widget, editor_node, right_ventricle_segment_id, right_myocardium_segment_id)
-    hollow_segment(editor_widget, editor_node, right_myocardium_segment_id, 1.0, EDITABLE_ANYWHERE) # TODO: make 1.0 a constant
-    grow_segment(editor_widget, editor_node, right_myocardium_segment_id, RIGHT_MYOCARDIUM_DEPTH, #TODO: remove the editable outside segments?
-                 EDITABLE_OUTSIDE_ALL_SEGMENTS, MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
-    smooth_segment(editor_widget, editor_node, right_myocardium_segment_id, RIGHT_MYOCARDIUM_DEPTH/2)
+    hollow_segment(editor_widget, editor_node, right_myocardium_segment_id, 1.0, "OUTSIDE_SURFACE") # TODO: make 1.0 a constant
+    if RIGHT_MYOCARDIUM_GROWTH > 0:
+        grow_segment(editor_widget, editor_node, right_myocardium_segment_id, RIGHT_MYOCARDIUM_GROWTH, #TODO: remove the editable outside segments?
+                    EDITABLE_OUTSIDE_ALL_SEGMENTS, MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
+    smooth_segment(editor_widget, editor_node, right_myocardium_segment_id, max(RIGHT_MYOCARDIUM_GROWTH/2, 1.0))
 
 
 def improve_left_myocardium(segmentation: slicer.vtkMRMLSegmentationNode, editor_widget: slicer.qMRMLSegmentEditorWidget, 
                             editor_node: slicer.vtkMRMLSegmentEditorNode, left_ventricle_segment_id: str, 
                             left_myocardium_segment_id: str) -> None:
     # TODO: write docstring
-    grow_segment(editor_widget, editor_node, left_myocardium_segment_id, LEFT_MYOCARDIUM_DEPTH, EDITABLE_OUTSIDE_ALL_SEGMENTS,
-                     MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
-    smooth_segment(editor_widget, editor_node, left_myocardium_segment_id, LEFT_MYOCARDIUM_DEPTH/2)
+    if LEFT_MYOCARDIUM_GROWTH > 0:
+        grow_segment(editor_widget, editor_node, left_myocardium_segment_id, LEFT_MYOCARDIUM_GROWTH, EDITABLE_OUTSIDE_ALL_SEGMENTS,
+                        MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
+    smooth_segment(editor_widget, editor_node, left_myocardium_segment_id, max(1.0, LEFT_MYOCARDIUM_GROWTH/2))
     create_closed_loop(segmentation, editor_widget, editor_node, left_myocardium_segment_id, left_ventricle_segment_id)
 
 # Dividing left myocardium into inner, middle and outer layers # TODO: remove the segmentaiton?
-def divide_myocardium(segmentation: slicer.vtkMRMLSegmentationNode, volume_node: slicer.vtkMRMLScalarVolumeNode,
+def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
                     segmentation_chambers_node: slicer.vtkMRMLSegmentationNode, 
                     myocardium_segment_id: str, ventricle_segment_id:str) -> tuple[str, str, str]:
     # TODO: write docstring
@@ -107,13 +109,9 @@ def divide_myocardium(segmentation: slicer.vtkMRMLSegmentationNode, volume_node:
     middle_id = import_labelmap_to_segmentation(middle_labelmap, segmentation_chambers_node)
     outer_id = import_labelmap_to_segmentation(outer_labelmap, segmentation_chambers_node)
 
-    segmentation.GetSegment(inner_id).SetName("left myocardium inner")
-    segmentation.GetSegment(middle_id).SetName("left myocardium middle")
-    segmentation.GetSegment(outer_id).SetName("left myocardium outer")
-
-    segmentation.GetSegment(inner_id).SetColor(COLOUR_PURPLE)
-    segmentation.GetSegment(middle_id).SetColor(COLOUR_GREEN)
-    segmentation.GetSegment(outer_id).SetColor(COLOUR_LIGHT_BLUE)
+    segmentation_chambers_node.GetSegmentation().GetSegment(inner_id).SetName("left myocardium inner")
+    segmentation_chambers_node.GetSegmentation().GetSegment(middle_id).SetName("left myocardium middle")
+    segmentation_chambers_node.GetSegmentation().GetSegment(outer_id).SetName("left myocardium outer")
 
     # Remove temporary labelmaps
     remove_nodes(inner_labelmap, middle_labelmap, outer_labelmap, myocardium_labelmap, ventricle_labelmap)
