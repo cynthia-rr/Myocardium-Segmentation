@@ -66,16 +66,17 @@ def export_segment_to_labelmap(segmentation_node: slicer.vtkMRMLSegmentationNode
     """
 
     labelmap_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", labelmap_name)
-    slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentation_node, [segment_id], labelmap_node, volume_node)
+    slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentation_node, [segment_id], 
+                                                                      labelmap_node, volume_node)
     return labelmap_node
 
-def import_labelmap_to_segmentation(labelmap_node: slicer.vtkMRMLLabelMapVolumeNode, segmentation_node: slicer.vtkMRMLSegmentationNode) -> str:
+def import_labelmap_to_segmentation(labelmap_node: slicer.vtkMRMLLabelMapVolumeNode, 
+                                    segmentation_node: slicer.vtkMRMLSegmentationNode) -> str:
     """
     Import a labelmap into a segment, and return the new segment ID.
     """
-
-    segmentation = segmentation_node.GetSegmentation()
     
+    segmentation = segmentation_node.GetSegmentation()
     existing_ids = set(segmentation.GetSegmentIDs())
     slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmap_node, segmentation_node)
     updated_ids = set(segmentation.GetSegmentIDs())
