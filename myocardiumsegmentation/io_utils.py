@@ -75,7 +75,7 @@ def import_labelmap_to_segmentation(labelmap_node: slicer.vtkMRMLLabelMapVolumeN
     """
     Import a labelmap into a segment, and return the new segment ID.
     """
-    
+
     segmentation = segmentation_node.GetSegmentation()
     existing_ids = set(segmentation.GetSegmentIDs())
     slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmap_node, segmentation_node)
@@ -96,67 +96,3 @@ def remove_nodes(*nodes) -> None:
         if node is not None:
             slicer.mrmlScene.RemoveNode(node)
 
-
-
-##############################################################################################################
-
-
-"""
-
-# Adjust volume display settings including window and level 
-# # TODO: move this to the end with the other visibility things?
-volumeDisplayNode = volumeNode.GetDisplayNode()
-volumeDisplayNode.SetWindow(DISPLAY_WINDOW)
-volumeDisplayNode.SetLevel(DISPLAY_LEVEL)
-
-# Load the saved segmentations
-segmentationChambersNode = slicer.util.loadSegmentation(PATH_FOR_SAVE / SEGMENTATION_CHAMBERS_FILENAME)
-segmentationChambersNode.SetName("Myocardium-Segmentation")
-segmentationEffusionNode = slicer.util.loadSegmentation(PATH_FOR_SAVE / SEGMENTATION_EFFUSION_FILENAME)
-segmentationEffusionNode.SetName("Effusion-Segmentation")
-segmentationArteryNode = slicer.util.loadSegmentation(PATH_FOR_SAVE / SEGMENTATION_ARTERY_FILENAME)
-segmentationArteryNode.SetName("Artery-Segmentation")
-segmentationTissueNode = slicer.util.loadSegmentation(PATH_FOR_SAVE / SEGMENTATION_TISSUE_FILENAME)
-segmentationTissueNode.SetName("Tissue-Segmentation")
-# TODO: error checking for alignment of segmentation on top of the volume node?
-
-# Create new segmentations for the right myocardium, left scar, right scar, setting their ID, name and colour
-segmentation = segmentationChambersNode.GetSegmentation()
-rightMyocardiumSegmentID = segmentation.AddEmptySegment("heart_myocardium_right", "right myocardium", COLOUR_PINK)
-leftScarInnerSegmentID = segmentation.AddEmptySegment("heart_scar_left_inner", "left scar inner", COLOUR_LIGHT_ORANGE)
-leftScarMiddleSegmentID = segmentation.AddEmptySegment("heart_scar_left_middle", "left scar middle", COLOUR_ORANGE)
-leftScarOuterSegmentID = segmentation.AddEmptySegment("heart_scar_left_outer", "left scar outer", COLOUR_DARK_ORANGE)
-
-scarSegmentID = segmentation.AddEmptySegment("heart_scar", "scar", COLOUR_YELLOW) # Colour scars yellow
-leftScarSegmentID = segmentation.AddEmptySegment("heart_left_scar", "left scar", COLOUR_YELLOW)
-rightScarSegmentID = segmentation.AddEmptySegment("heart_right_scar", "right scar", COLOUR_YELLOW)
-borderSegmentID = segmentation.AddEmptySegment("heart_border", "border", COLOUR_BLUE) 
-# TODO: change borderSegmentID into a temp segment id?, delete when done with it
-
-# Error checking if segments were created successfully, if not print error message then exit
-if not rightMyocardiumSegmentID or not scarSegmentID or not leftScarSegmentID or not rightScarSegmentID:
-    print("Error creating segments")
-    exit()
-
-# Set the name of the old myocardium segment to be left myocardium, and save right ventricle segment ID for later use
-# Working off assumption of consistent naming from TotalSegmentator, but should add error checking
-pleuralEffusionSegmentID = segmentationEffusionNode.GetSegmentation().GetSegmentIdBySegmentName("lung_pleural") 
-leftMyocardiumSegmentID = segmentation.GetSegmentIdBySegmentName("myocardium") 
-# TODO: change this to be adaptive so it doesn't break if the naming changes
-segmentation.GetSegment(leftMyocardiumSegmentID).SetName("left myocardium") 
-leftVentricleSegmentID = segmentation.GetSegmentIdBySegmentName("left ventricle of heart") 
-rightVentricleSegmentID = segmentation.GetSegmentIdBySegmentName("right ventricle of heart")
-leftVentricleSegmentID = segmentation.GetSegmentIdBySegmentName("left ventricle of heart")
-
-
-
-# Create SegmentEditor Node from module # TODO: fix the order of editor node vs widget
-segmentEditorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentEditorNode", "SegmentEditorNode")
-segmentEditorWidget = slicer.qMRMLSegmentEditorWidget()
-segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode) # Set the Segment Editor node
-# Create Segment Editor widget's MRML scene, segmentation node and volume node
-segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
-segmentEditorWidget.setSegmentationNode(segmentationChambersNode)
-segmentEditorWidget.setSourceVolumeNode(volumeNode)
-
-"""
