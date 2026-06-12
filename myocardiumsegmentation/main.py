@@ -2,7 +2,8 @@ import slicer
 
 from io_utils import load_dicom_series, load_segmentation
 from totalsegmentator_pipeline import run_totalsegmentator_pipeline
-from cardiac_analysis import segment_right_myocardium, improve_left_myocardium, segment_scar, segment_right_left_scar, divide_myocardium
+from cardiac_analysis import (segment_right_myocardium, improve_left_myocardium, 
+                              segment_scar, segment_right_left_scar, divide_myocardium)
 from visualization import set_segments_visibility
 from io_constants import *
 
@@ -69,7 +70,6 @@ def main():
 
     segmentation.GetSegment(inner_id).SetColor(COLOUR_PURPLE)
     segmentation.GetSegment(middle_id).SetColor(COLOUR_GREEN)
-    segmentation.GetSegment(outer_id).SetColor(COLOUR_LIGHT_BLUE)
 
     # Segment general scar areas
     print("Segmenting scar...")

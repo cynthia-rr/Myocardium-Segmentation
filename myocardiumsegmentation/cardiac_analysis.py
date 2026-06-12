@@ -1,4 +1,5 @@
 import slicer
+import vtk
 
 import SimpleITK as sitk
 import sitkUtils
@@ -20,7 +21,6 @@ def segment_right_myocardium(editor_widget: slicer.qMRMLSegmentEditorWidget, edi
                     EDITABLE_OUTSIDE_ALL_SEGMENTS, MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
     smooth_segment(editor_widget, editor_node, right_myocardium_segment_id, max(RIGHT_MYOCARDIUM_GROWTH/2, 1.0))
 
-
 def improve_left_myocardium(segmentation: slicer.vtkMRMLSegmentationNode, editor_widget: slicer.qMRMLSegmentEditorWidget, 
                             editor_node: slicer.vtkMRMLSegmentEditorNode, left_ventricle_segment_id: str, 
                             left_myocardium_segment_id: str) -> None:
@@ -37,17 +37,14 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
                     myocardium_segment_id: str, ventricle_segment_id:str) -> tuple[str, str, str]:
     # TODO: write docstring
     """
+    Divide the left myocardium into three layers, inner, middle, outer that extend from the left ventricle 
+    and end at the edge of the left myocardium. Return the segment IDs of the inner, middle and outer segments. 
     """
     # Export myocardium to myocardiumlabel map
     myocardium_labelmap = export_segment_to_labelmap(segmentation_chambers_node, myocardium_segment_id, volume_node, "MyocardiumLabelMap")
     
     # Export left ventricle segment to ventricle label map
     ventricle_labelmap = export_segment_to_labelmap(segmentation_chambers_node, ventricle_segment_id, volume_node, "VentricleLabelMap")
-
-    # TODO: delete if unnedded
-    # ventricle_labelmap = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", "VentricleLabelMap")
-    # slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentation_chambers_node, [str(ventricle_segment_id)], 
-    #                                                                   ventricle_labelmap, volume_node)
 
     # Convert from label map to numpy
     myocardium_image = sitkUtils.PullVolumeFromSlicer(myocardium_labelmap)
@@ -58,15 +55,10 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
     spacingXYZ = myocardium_image.GetSpacing()
     spacing = spacingXYZ[::-1]
 
-    # # Make endocardial and epicardial surfaces # TODO: delete 
-    # endocardium_surface = (scipy.ndimage.binary_dilation(ventricle_array) & myocardium_array)
-    # epicardium_surface = (~scipy.ndimage.binary_erosion(myocardium_array) & myocardium_array)
-
     # Calculate distance to endocardium and epicardium
     distance_endocardium = scipy.ndimage.distance_transform_edt(~ventricle_array, sampling=spacing)
     distance_epicardium = scipy.ndimage.distance_transform_edt(myocardium_array, sampling=spacing)
     
-
     # Restrict to myocardium only
     distance_endocardium = np.abs(distance_endocardium)
     distance_epicardium = np.maximum(distance_epicardium, 0)
@@ -89,6 +81,7 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
     inner_image = sitk.GetImageFromArray(inner_mask.astype(np.uint8))
     middle_image = sitk.GetImageFromArray(middle_mask.astype(np.uint8))
     outer_image = sitk.GetImageFromArray(outer_mask.astype(np.uint8))
+
 
     # Copy geometry
     inner_image.CopyInformation(myocardium_image)
@@ -115,8 +108,8 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
 
     # Remove temporary labelmaps
     remove_nodes(inner_labelmap, middle_labelmap, outer_labelmap, myocardium_labelmap, ventricle_labelmap)
-
     return inner_id, middle_id, outer_id # Return segment IDs
+
 
 # TODO: make a separate segment border function
 
