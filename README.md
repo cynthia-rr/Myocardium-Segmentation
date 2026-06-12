@@ -6,9 +6,7 @@ Tool for segmenting the scars in the myocardium by segmenting the left and right
 Axial view of myocardium segmentations (in red, pink, green, blue) and scar tissue (in yellow and shades of orange).
 3D model of the segmentations (red is the right myocardium, yellow is the scarring on the right myocardium).
 
-<img width="433" height="423" alt="axial-view" src="https://github.com/user-attachments/assets/7ba5c750-ec64-4c07-aaf5-ef38031f631d" />
-<img width="417" height="423" alt="3D-view" src="https://github.com/user-attachments/assets/f09d9133-0b87-4832-9e8f-fca610fe6aa6" />
-
+** insert photos To be done
 
 # Installation Instructions:
 This tool works on Ubuntu, Mac and Windows.
