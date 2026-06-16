@@ -1,5 +1,5 @@
 import slicer
-from constants import *
+from io_constants import *
 
 def create_segmentation_node(name: str) -> slicer.vtkMRMLSegmentationNode:
     """

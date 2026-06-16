@@ -1,6 +1,6 @@
 import slicer
 
-from constants import DISPLAY_LEVEL, DISPLAY_WINDOW
+from io_constants import DISPLAY_LEVEL, DISPLAY_WINDOW
 
 def set_segments_visibility(segmentation_node: slicer.vtkMRMLSegmentationNode, 
                             segmentation: slicer.vtkMRMLSegmentationNode, 

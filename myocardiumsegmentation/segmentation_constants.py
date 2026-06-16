@@ -1,11 +1,5 @@
 # Constants for cardiac segmentation editor effects
 
-SEGMENTATION_QUALITY = "normal"
-SEGMENTATION_CHAMBERS_TASK = "heartchambers_highres"
-SEGMENTATION_EFFUSION_TASK = "pleural_pericard_effusion"
-SEGMENTATION_ARTERY_TASK = "coronary_arteries"
-SEGMENTATION_TISSUE_TASK = "tissue_types"
-
 MIN_THRESHOLD_VALUE = -1024
 MAX_THRESHOLD_VALUE = 3071
 MIN_MYOCARDIUM_THRESHOLD_VALUE = -90 # TODO: change back to -100?
