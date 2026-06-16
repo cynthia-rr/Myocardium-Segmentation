@@ -13,7 +13,6 @@ def configure_editor(editor_node: slicer.vtkMRMLSegmentEditorNode, *, segment_id
     editor_node.SetSelectedSegmentID(segment_id)
     editor_node.SetOverwriteMode(overwrite_mode)
     editor_node.SetMaskMode(mask_mode)
-
     editor_node.SetSourceVolumeIntensityMask(mask_enabled)
     if mask_enabled:
         editor_node.SetSourceVolumeIntensityMaskRange(min_threshold, max_threshold)
@@ -23,13 +22,11 @@ def apply_effect(editor_widget: slicer.qMRMLSegmentEditorWidget, effect_name: st
     """
     Apply a Segment Editor effect given the parameters
     """
-
     editor_widget.setActiveEffectByName(effect_name)
     effect = editor_widget.activeEffect()
 
     for key, value in parameters.items():
         effect.setParameter(key, value)
-
     effect.self().onApply()
 
     
@@ -81,7 +78,7 @@ def hollow_segment(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: 
     apply_effect(editor_widget, "Hollow", {"ShellThicknessMm":thickness_mm, "ShellMode":shell_mode, "ApplyToAllVisibleSegments":0})
     
 
-def grow_segment(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
+def grow_shrink_segment(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
                  destination_segment_id: str, margin_mm: float, mask_mode: int, min_threshold: int, max_threshold:int) -> None:
     """
     Grow the segment by the margin size, using the given mask and threshold boundaries
@@ -89,7 +86,7 @@ def grow_segment(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: sl
     
     configure_editor(editor_node, segment_id=destination_segment_id, mask_enabled=True, mask_mode=mask_mode, 
                      min_threshold=min_threshold, max_threshold=max_threshold)
-    apply_effect(editor_widget, "Margin", {"MarginSizeMm":margin_mm})
+    apply_effect(editor_widget, "Margin", {"MarginSizeMm": margin_mm})
     
 
 def smooth_segment(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
