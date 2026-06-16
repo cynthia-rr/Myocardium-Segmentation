@@ -18,9 +18,6 @@ MIDDLE_MYOCARDIUM_LIMIT = 67
 
 RIGHT_MYOCARDIUM_GROWTH = 1.0
 LEFT_MYOCARDIUM_GROWTH = 0.0
-# in main script, write if left_myocardium == 0 or < min value from resolution, 
-# then skip the margin step, and adjust smoothing??
-
 
 EDITABLE_ANYWHERE = 0
 EDITABLE_OUTSIDE_ALL_SEGMENTS = 3
