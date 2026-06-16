@@ -3,7 +3,7 @@ from pathlib import Path
 
 PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/s0738/ct.nii.gz"
 PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
-PATH_FOR_SAVE = Path.home() / "Documents/sjhc/extension-repo/python-script/segmentations"
+PATH_FOR_SAVE = Path.home() / "Documents/sjhc/extension-repo/saved-segmentations"
 
 SEGMENTATION_CHAMBERS_FILENAME = "chambers-segmentation.seg.nrrd"
 SEGMENTATION_EFFUSION_FILENAME = "effusion-segmentation.seg.nrrd"

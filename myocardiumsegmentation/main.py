@@ -28,9 +28,6 @@ def main():
     # Get key segment IDs (from TotalSegmentator output)
     left_myocardium_id = segmentation.GetSegmentIdBySegmentName("myocardium")
     segmentation.GetSegment(left_myocardium_id).SetName("left myocardium") # Rename as appropriate
-    # left_inner_id = segmentation.AddEmptySegment("heart_myocardium_left_inner", "left myocardium inner", COLOUR_PINK)
-    # left_middle_id = segmentation.AddEmptySegment("heart_myocardium_left_middle", "left myocardium middle", COLOUR_GREEN)
-    # left_outer_id = segmentation.AddEmptySegment("heart_myocardium_left_outer", "left myocardium outer", COLOUR_LIGHT_BLUE)
 
     right_ventricle_id = segmentation.GetSegmentIdBySegmentName("right ventricle of heart")
     left_ventricle_id = segmentation.GetSegmentIdBySegmentName("left ventricle of heart")
