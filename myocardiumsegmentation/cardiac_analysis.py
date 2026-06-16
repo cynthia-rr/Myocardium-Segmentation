@@ -18,8 +18,8 @@ def segment_right_myocardium(editor_widget: slicer.qMRMLSegmentEditorWidget, edi
     keep_largest_island(editor_widget, editor_node, right_ventricle_segment_id)
     union_segments(editor_widget, editor_node, right_ventricle_segment_id, right_myocardium_segment_id)
     hollow_segment(editor_widget, editor_node, right_myocardium_segment_id, 1.0, "OUTSIDE_SURFACE") # TODO: make 1.0 a constant
-    if RIGHT_MYOCARDIUM_GROWTH > 0:
-        grow_segment(editor_widget, editor_node, right_myocardium_segment_id, RIGHT_MYOCARDIUM_GROWTH, #TODO: remove the editable outside segments?
+    if RIGHT_MYOCARDIUM_GROWTH != 0:
+        grow_shrink_segment(editor_widget, editor_node, right_myocardium_segment_id, RIGHT_MYOCARDIUM_GROWTH, #TODO: remove the editable outside segments?
                     EDITABLE_OUTSIDE_ALL_SEGMENTS, MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
     smooth_segment(editor_widget, editor_node, right_myocardium_segment_id, max(RIGHT_MYOCARDIUM_GROWTH/2, 1.0))
 
@@ -31,8 +31,8 @@ def improve_left_myocardium(segmentation: slicer.vtkMRMLSegmentationNode, editor
     smoothing, and unioning with a hollow to make a closed loop. Return none, mutate the segment using 
     left_myocardium_segment_id. 
     """
-    if LEFT_MYOCARDIUM_GROWTH > 0:
-        grow_segment(editor_widget, editor_node, left_myocardium_segment_id, LEFT_MYOCARDIUM_GROWTH, EDITABLE_OUTSIDE_ALL_SEGMENTS,
+    if LEFT_MYOCARDIUM_GROWTH != 0:
+        grow_shrink_segment(editor_widget, editor_node, left_myocardium_segment_id, LEFT_MYOCARDIUM_GROWTH, EDITABLE_OUTSIDE_ALL_SEGMENTS,
                         MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
     smooth_segment(editor_widget, editor_node, left_myocardium_segment_id, max(1.0, LEFT_MYOCARDIUM_GROWTH/2))
     create_closed_loop(segmentation, editor_widget, editor_node, left_myocardium_segment_id, left_ventricle_segment_id)
