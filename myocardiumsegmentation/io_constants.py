@@ -2,22 +2,17 @@
 from pathlib import Path
 
 PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/s0738/ct.nii.gz"
-PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
+PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CCTA"
 PATH_FOR_SAVE = Path.home() / "Documents/sjhc/extension-repo/myocardiumsegmentation/saved-segmentations"
 
-SEGMENTATION_CHAMBERS_FILENAME = "chambers-segmentation.seg.nrrd"
-SEGMENTATION_EFFUSION_FILENAME = "effusion-segmentation.seg.nrrd"
-SEGMENTATION_ARTERY_FILENAME = "artery-segmentation.seg.nrrd"
-SEGMENTATION_TISSUE_FILENAME = "tissue-segmentation.seg.nrrd"
-
-SEGMENTATION_QUALITY = "normal"
-SEGMENTATION_CHAMBERS_TASK = "heartchambers_highres"
-SEGMENTATION_EFFUSION_TASK = "pleural_pericard_effusion"
-SEGMENTATION_ARTERY_TASK = "coronary_arteries"
-SEGMENTATION_TISSUE_TASK = "tissue_types"
+SEGMENTATION_CHAMBERS_FILENAME = "chambers-segmentation2.seg.nrrd"
+SEGMENTATION_EFFUSION_FILENAME = "effusion-segmentation2.seg.nrrd"
+SEGMENTATION_ARTERY_FILENAME = "artery-segmentation2.seg.nrrd"
+SEGMENTATION_TISSUE_FILENAME = "tissue-segmentation2.seg.nrrd"
 
 DISPLAY_WINDOW = 800
 DISPLAY_LEVEL = 200
+
 COLOUR_RED = (0.5, 0.0, 0.0)
 COLOUR_PINK = (1.0, 0.8, 1.0)
 COLOUR_DARK_ORANGE = (1.0, 0.65, 0.0)

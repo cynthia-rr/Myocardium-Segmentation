@@ -29,11 +29,11 @@ class MyocardiumSegmentation(ScriptedLoadableModule):
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = _("MyocardiumSegmentation")  # TODO: make this more human readable by adding spaces
+        self.parent.title = _("Myocardium Segmentation")  
         # TODO: set categories (folders where the module shows up in the module selector)
-        self.parent.categories = [translate("qSlicerAbstractCoreModule", "Cardiac")]
-        self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-        self.parent.contributors = ["John Doe (AnyWare Corp.)"]  # TODO: replace with "Firstname Lastname (Organization)"
+        self.parent.categories = [translate("Segmentation", "Cardiac")]
+        self.parent.dependencies = ["TotalSegmentator", "SegmentEditorEffects"]  # TODO: add here list of module names that this module requires
+        self.parent.contributors = ["Cynthia Rong (Lawson Research)"] 
         # TODO: update with short description of the module and a link to online module documentation
         # _() function marks text as translatable to other languages
         self.parent.helpText = _("""
@@ -123,6 +123,12 @@ class MyocardiumSegmentationParameterNode:
     thresholdedVolume: vtkMRMLScalarVolumeNode
     invertedVolume: vtkMRMLScalarVolumeNode
 
+    # Additional parameters for the segmentation of the scar and myocardium # TODO: add constants?
+    scarLowerThreshold: Annotated[float, WithinRange(-1000, 1000)] = -500
+    scarUpperThreshold: Annotated[float, WithinRange(-1000, 1000)] = 50
+    leftMyocardiumGrowth: Annotated[float, WithinRange(-10.0, 10.0)] = 1.0
+    rightMyocardiumGrowth: Annotated[float, WithinRange(-10.0, 10.0)] = 1.0
+    borderWidth: Annotated[float, WithinRange(0.0, 10.0)] = 4.0
 
 #
 # MyocardiumSegmentationWidget
@@ -289,6 +295,8 @@ class MyocardiumSegmentationLogic(ScriptedLoadableModuleLogic):
         :param imageThreshold: values above/below this threshold will be set to 0
         :param invert: if True then values above the threshold will be set to 0, otherwise values below are set to 0
         :param showResult: show output volume in slice viewers
+
+        :param 
         """
 
         if not inputVolume or not outputVolume:

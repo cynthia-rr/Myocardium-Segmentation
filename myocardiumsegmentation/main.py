@@ -12,12 +12,17 @@ def main():
     volume_node = load_dicom_series(PATH_TO_DICOM_FOLDER)
 
     # Run TotalSegmentator
-    # run_totalsegmentator_pipeline(volume_node)
+    segmentation_name_to_node = run_totalsegmentator_pipeline(volume_node)
 
+    # extract the segmentation nodes from the dictionary # TODO: make this constant variables
+    segmentation_chambers_node = segmentation_name_to_node["Chambers-Segmentation"]
+    segmentation_effusion_node = segmentation_name_to_node["Effusion-Segmentation"]
+    segmentation_artery_node = segmentation_name_to_node["Artery-Segmentation"]
+    segmentation_tissue_node = segmentation_name_to_node["Tissue-Segmentation"]
 
-    # TODO: include the others
-    segmentation_chambers_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_CHAMBERS_FILENAME, "Chambers-Segmentation")
-    segmentation_effusion_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_EFFUSION_FILENAME, "Effusion-Segmentation")
+    # Uncomment the below 4 lines if running only Myocardium Segmentation (already ran TotalSegmentation separately)
+    # segmentation_chambers_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_CHAMBERS_FILENAME, "Chambers-Segmentation")
+    # segmentation_effusion_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_EFFUSION_FILENAME, "Effusion-Segmentation")
     # segmentation_artery_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_ARTERY_FILENAME, "Artery-Segmentation")
     # segmentation_tissue_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_TISSUE_FILENAME, "Tissue-Segmentation")
     
@@ -25,6 +30,7 @@ def main():
 
     segmentation = segmentation_chambers_node.GetSegmentation()
 
+    # TODO: clean this up
     # Get key segment IDs (from TotalSegmentator output)
     left_myocardium_id = segmentation.GetSegmentIdBySegmentName("myocardium")
     segmentation.GetSegment(left_myocardium_id).SetName("left myocardium") # Rename as appropriate
@@ -68,6 +74,7 @@ def main():
     left_inner_id, left_middle_id, left_outer_id = divide_myocardium(volume_node, segmentation_chambers_node, 
                                                                      left_myocardium_id, left_ventricle_id)
 
+    # TODO: clean this up
     segmentation.GetSegment(left_inner_id).SetName("left myocardium inner")
     segmentation.GetSegment(left_middle_id).SetName("left myocardium middle")
     segmentation.GetSegment(left_outer_id).SetName("left myocardium outer")
@@ -91,8 +98,8 @@ def main():
     set_segments_visibility(segmentation_chambers_node, segmentation, [left_inner_id, left_middle_id, left_outer_id, 
         right_myocardium_id, inner_scar_id, middle_scar_id, outer_scar_id, right_scar_id], volume_node)
     segmentation_effusion_node.GetDisplayNode().SetAllSegmentsVisibility(False)
-    # segmentation_artery_node.GetDisplayNode().SetAllSegmentsVisibility(False)
-    # segmentation_tissue_node.GetDisplayNode().SetAllSegmentsVisibility(False)
+    segmentation_artery_node.GetDisplayNode().SetAllSegmentsVisibility(False)
+    segmentation_tissue_node.GetDisplayNode().SetAllSegmentsVisibility(False)
 
     print("Done segmentation!")
 
