@@ -45,7 +45,6 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
     and end at the edge of the left myocardium. Return the segment IDs of the inner, middle and outer segments. 
     """
     # Export myocardium to myocardium label mapw
-    # Export myocardium to myocardium label map
     myocardium_labelmap = export_segment_to_labelmap(segmentation_chambers_node, myocardium_segment_id, volume_node, "MyocardiumLabelMap")
     
     # Export left ventricle segment to ventricle label map
