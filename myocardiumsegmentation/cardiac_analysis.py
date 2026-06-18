@@ -44,7 +44,7 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
     Divide the left myocardium into three layers, inner, middle, outer that extend from the left ventricle 
     and end at the edge of the left myocardium. Return the segment IDs of the inner, middle and outer segments. 
     """
-    # Export myocardium to myocardium label mapw
+    # Export myocardium to myocardium label map
     myocardium_labelmap = export_segment_to_labelmap(segmentation_chambers_node, myocardium_segment_id, volume_node, "MyocardiumLabelMap")
     
     # Export left ventricle segment to ventricle label map
@@ -108,6 +108,7 @@ def segment_scar(segmentation: slicer.vtkMRMLSegmentationNode, segmentation_effu
     segmentation.CopySegmentFromSegmentation(segmentation_effusion_node.GetSegmentation(), pleural_segment_id)
     # Copy the Pleural Effusion into the Border segment 
     union_segments(editor_widget, editor_node, pleural_segment_id, border_segment_id)
+    hollow_segment(editor_widget, editor_node, border_segment_id, PLEURAL_BORDER_WIDTH, "INSIDE_SURFACE")
     hollow_segment(editor_widget, editor_node, border_segment_id, PLEURAL_BORDER_WIDTH, "INSIDE_SURFACE")
     subtract_segments(editor_widget, editor_node, border_segment_id, scar_segment_id)
 
