@@ -9,7 +9,10 @@ from io_constants import *
 
 def main():
     # Load input data
-    volume_node = load_dicom_series(PATH_TO_DICOM_FOLDER)
+    # volume_node = load_dicom_series(PATH_TO_DICOM_FOLDER)
+    
+    # Load the NIFTI file
+    volume_node = slicer.util.loadVolume(str(PATH_TO_NIFTI))
 
     # Run TotalSegmentator
     segmentation_name_to_node = run_totalsegmentator_pipeline(volume_node)
