@@ -24,11 +24,11 @@ def main():
     # segmentation_artery_node = segmentation_name_to_node["Artery-Segmentation"]
     # segmentation_tissue_node = segmentation_name_to_node["Tissue-Segmentation"]
 
-    # extract the segmentation nodes from the dictionary # TODO: make this constant variables
-    segmentation_chambers_node = segmentation_name_to_node["Chambers-Segmentation"]
-    segmentation_effusion_node = segmentation_name_to_node["Effusion-Segmentation"]
-    segmentation_artery_node = segmentation_name_to_node["Artery-Segmentation"]
-    segmentation_tissue_node = segmentation_name_to_node["Tissue-Segmentation"]
+    # # extract the segmentation nodes from the dictionary # TODO: make this constant variables
+    # segmentation_chambers_node = segmentation_name_to_node["Chambers-Segmentation"]
+    # segmentation_effusion_node = segmentation_name_to_node["Effusion-Segmentation"]
+    # segmentation_artery_node = segmentation_name_to_node["Artery-Segmentation"]
+    # segmentation_tissue_node = segmentation_name_to_node["Tissue-Segmentation"]
 
     # Uncomment the below 4 lines if running only Myocardium Segmentation 
     # (already ran TotalSegmentation separately and saved resultd)
