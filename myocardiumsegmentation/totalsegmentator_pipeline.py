@@ -42,10 +42,10 @@ def run_totalsegmentator_pipeline(volume_node: slicer.vtkMRMLScalarVolumeNode) -
     
 
     # Define pipeline steps
-    tasks = [(SEGMENTATION_CHAMBERS_TASK, segmentation_chambers_node, "heart"),
-             (SEGMENTATION_EFFUSION_TASK, segmentation_effusion_node, "effusion"),
-             (SEGMENTATION_ARTERY_TASK, segmentation_artery_node, "artery"),
-             (SEGMENTATION_TISSUE_TASK, segmentation_tissue_node, "tissue")]
+    tasks = [(SEGMENTATION_CHAMBERS_TASK, segmentation_chambers_node, CHAMBERS),
+             (SEGMENTATION_EFFUSION_TASK, segmentation_effusion_node, EFFUSION),
+             (SEGMENTATION_ARTERY_TASK, segmentation_artery_node, ARTERY),
+             (SEGMENTATION_TISSUE_TASK, segmentation_tissue_node, TISSUE)]
 
     # Run all segmentations
     for task, output_node, label in tasks:
@@ -64,5 +64,5 @@ def run_totalsegmentator_pipeline(volume_node: slicer.vtkMRMLScalarVolumeNode) -
     print("Saved TotalSegmentator outputs")
 
     return name_to_node
-    # slicer.util.exit()
+
 

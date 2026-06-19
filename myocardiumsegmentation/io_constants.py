@@ -1,14 +1,21 @@
 # Constants for input, output, visuals
 from pathlib import Path
 
+from sympy import E
+
 PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/heart/s0338/ct.nii.gz"
 PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
-PATH_FOR_SAVE = Path.home() / "Documents/sjhc/saved-segmentations"
+PATH_FOR_SAVE = Path.home() / "Documents/sjhc/Myocardium-Segmentation/myocardiumsegmentation/saved-segmentations"
 
-SEGMENTATION_CHAMBERS_FILENAME = "chambers-segmentation3.seg.nrrd"
-SEGMENTATION_EFFUSION_FILENAME = "effusion-segmentation3.seg.nrrd"
-SEGMENTATION_ARTERY_FILENAME = "artery-segmentation3.seg.nrrd"
-SEGMENTATION_TISSUE_FILENAME = "tissue-segmentation3.seg.nrrd"
+SEGMENTATION_CHAMBERS_FILENAME = "chambers-segmentation.seg.nrrd"
+SEGMENTATION_EFFUSION_FILENAME = "effusion-segmentation.seg.nrrd"
+SEGMENTATION_ARTERY_FILENAME = "artery-segmentation.seg.nrrd"
+SEGMENTATION_TISSUE_FILENAME = "tissue-segmentation.seg.nrrd"
+
+CHAMBERS = "chambers"
+EFFUSION = "effusion"
+ARTERY = "artery"
+TISSUE = "tissue"
 
 DISPLAY_WINDOW = 800
 DISPLAY_LEVEL = 200

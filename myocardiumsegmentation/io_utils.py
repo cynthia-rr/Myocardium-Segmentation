@@ -2,6 +2,8 @@ from pathlib import Path
 import slicer
 import DICOMLib
 
+from io_constants import *
+
 #### Initialisation and setup ####
 
 def load_dicom_series(dicom_folder: Path) -> slicer.vtkMRMLScalarVolumeNode:
@@ -52,11 +54,11 @@ def load_totalsegmentator_segmentations(save_folder: Path, chambers_filename: st
      Load the segmentation nodes from TotalSegmentator with the filename, return a dictionary from name to segmentation node.
      """
 
-     return { # TODO: chambers file name constant
-         "chambers": load_segmentation(save_folder / chambers_filename, "Chambers-Segmentation"),
-        "effusion": load_segmentation(save_folder / effusion_filename, "Effusion-Segmentation"),
-        "artery": load_segmentation(save_folder / artery_filename, "Artery-Segmentation"),
-        "tissue": load_segmentation(save_folder / tissue_filename, "Tissue-Segmentation")
+     return {
+         CHAMBERS: load_segmentation(save_folder / chambers_filename, CHAMBERS),
+        EFFUSION: load_segmentation(save_folder / effusion_filename, EFFUSION),
+        ARTERY: load_segmentation(save_folder / artery_filename, ARTERY),
+        TISSUE: load_segmentation(save_folder / tissue_filename, TISSUE)
         }
 
 def export_segment_to_labelmap(segmentation_node: slicer.vtkMRMLSegmentationNode, segment_id: str, 

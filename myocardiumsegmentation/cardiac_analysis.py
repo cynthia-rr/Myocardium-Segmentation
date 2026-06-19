@@ -19,9 +19,9 @@ def segment_right_myocardium(editor_widget: slicer.qMRMLSegmentEditorWidget, edi
     hollow_segment(editor_widget, editor_node, right_myocardium_segment_id, 1.5, "OUTSIDE_SURFACE") 
     # TODO: make 1.5 a constant, smallest value depends on image resolution
     if RIGHT_MYOCARDIUM_GROWTH != 0:
-        grow_shrink_segment(editor_widget, editor_node, right_myocardium_segment_id, RIGHT_MYOCARDIUM_GROWTH, #TODO: remove the editable outside segments?
+        grow_shrink_segment(editor_widget, editor_node, right_myocardium_segment_id, RIGHT_MYOCARDIUM_GROWTH,
                     EDITABLE_OUTSIDE_ALL_SEGMENTS, MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
-    smooth_segment(editor_widget, editor_node, right_myocardium_segment_id, max(RIGHT_MYOCARDIUM_GROWTH/2, 1.0))
+    smooth_segment(editor_widget, editor_node, right_myocardium_segment_id, max(RIGHT_MYOCARDIUM_GROWTH/2, 1.5))
 
 def improve_left_myocardium(segmentation: slicer.vtkMRMLSegmentationNode, editor_widget: slicer.qMRMLSegmentEditorWidget, 
                             editor_node: slicer.vtkMRMLSegmentEditorNode, left_ventricle_segment_id: str, 
@@ -31,7 +31,7 @@ def improve_left_myocardium(segmentation: slicer.vtkMRMLSegmentationNode, editor
     smoothing, and unioning with a hollow to make a closed loop. Return none, mutate the segment using 
     left_myocardium_segment_id. 
     """
-    if LEFT_MYOCARDIUM_GROWTH != 0:
+    if LEFT_MYOCARDIUM_GROWTH != 0:     # TODO: make 1.5 a constant, smallest value depends on image resolution
         grow_shrink_segment(editor_widget, editor_node, left_myocardium_segment_id, LEFT_MYOCARDIUM_GROWTH, EDITABLE_OUTSIDE_ALL_SEGMENTS,
                         MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
     smooth_segment(editor_widget, editor_node, left_myocardium_segment_id, max(1.0, LEFT_MYOCARDIUM_GROWTH/2))
@@ -51,7 +51,6 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
     ventricle_labelmap = export_segment_to_labelmap(segmentation_chambers_node, ventricle_segment_id, volume_node, "VentricleLabelMap")
 
     # Create inner layer labelmap as a duplicate of the myocardium to start off 
-    # TODO: change it so that it takes the inner, middle, outer segment id as input?
     inner_labelmap = export_segment_to_labelmap(segmentation_chambers_node, myocardium_segment_id, volume_node, "InnerLayerLabelMap")
     middle_labelmap = export_segment_to_labelmap(segmentation_chambers_node, myocardium_segment_id, volume_node, "MiddleLayerLabelMap")
     outer_labelmap = export_segment_to_labelmap(segmentation_chambers_node, myocardium_segment_id, volume_node, "OuterLayerLabelMap")
@@ -67,8 +66,8 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
     distance_epicardium = scipy.ndimage.distance_transform_edt(myocardium_array, sampling=spacing)
     
     # Restrict to myocardium only
-    distance_endocardium = np.abs(distance_endocardium)
-    distance_epicardium = np.maximum(distance_epicardium, 0)
+    distance_endocardium = abs(distance_endocardium)
+    distance_epicardium = np.max(distance_epicardium, 0)
 
     # Calculate wall depth, and smoothing to prevent protrusions
     wall_depth = distance_endocardium / (distance_endocardium + distance_epicardium + 1e-6) # to prevent division by 0
@@ -104,7 +103,8 @@ def segment_scar(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: sl
     Segment the general scar area by using a threshold, and subtracting the pleural border
     """
     threshold_segment(editor_widget, editor_node, scar_segment_id, MIN_SCAR_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
-    # TODO: smooth? maybe a little?
+     # TODO: keep smoothing? or remove? or scar sections, instead of general scar?
+    smooth_segment(editor_widget, editor_node, scar_segment_id, 1.2) # TODO: magic number
 
 
 def segment_scar_cleanup(segmentation: slicer.vtkMRMLSegmentationNode, segmentation_effusion_node: slicer.vtkMRMLSegmentationNode,
@@ -138,23 +138,6 @@ def segment_scar_sections(editor_widget: slicer.qMRMLSegmentEditorWidget, editor
     for each (region, scar) pair.
     For ex. (left_myocardium_id, left_scar_id), (left_inner_myocardium_id, left_inner_scar_id)           
     """
-
-     # TODO: smooth left and right scars??
-    # TODO: do the left/right need smoothing?
-    smooth_segment(editor_widget, editor_node, scar_segment_id, 1.2)
-    """segmentEditorWidget.setActiveEffectByName("Smoothing")
-    setSegmentEditorNode(segmentEditorNode, leftScarSegmentID, True, EDITABLE_ANYWHERE, 
-                        MIN_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
-
-    effect = segmentEditorWidget.activeEffect()
-    effect.setParameter("SmoothingMethod", "CLOSING")
-    effect.setParameter("KernelSizeMm", "2.0")
-    effect.self().onApply()
-
-    # TODO: fix the magic numbers
-    effect.setParameter("SmoothingMethod", "OPENING")
-    effect.setParameter("KernelSizeMm", "1.2")
-    effect.self().onApply()"""
 
     for region_segment_id in region_to_scar_segment_id:
         segment_scar_in_region(editor_widget, editor_node, scar_segment_id, region_segment_id, region_to_scar_segment_id[region_segment_id])
