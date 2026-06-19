@@ -15,19 +15,19 @@ def main():
     volume_node = slicer.util.loadVolume(str(PATH_TO_NIFTI))
 
     # Run TotalSegmentator
-    segmentation_name_to_node = run_totalsegmentator_pipeline(volume_node)
+    # segmentation_name_to_node = run_totalsegmentator_pipeline(volume_node)
 
-    # extract the segmentation nodes from the dictionary # TODO: make this constant variables
-    segmentation_chambers_node = segmentation_name_to_node["Chambers-Segmentation"]
-    segmentation_effusion_node = segmentation_name_to_node["Effusion-Segmentation"]
-    segmentation_artery_node = segmentation_name_to_node["Artery-Segmentation"]
-    segmentation_tissue_node = segmentation_name_to_node["Tissue-Segmentation"]
+    # # extract the segmentation nodes from the dictionary # TODO: make this constant variables
+    # segmentation_chambers_node = segmentation_name_to_node["Chambers-Segmentation"]
+    # segmentation_effusion_node = segmentation_name_to_node["Effusion-Segmentation"]
+    # segmentation_artery_node = segmentation_name_to_node["Artery-Segmentation"]
+    # segmentation_tissue_node = segmentation_name_to_node["Tissue-Segmentation"]
 
     # Uncomment the below 4 lines if running only Myocardium Segmentation (already ran TotalSegmentation separately)
-    # segmentation_chambers_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_CHAMBERS_FILENAME, "Chambers-Segmentation")
-    # segmentation_effusion_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_EFFUSION_FILENAME, "Effusion-Segmentation")
-    # segmentation_artery_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_ARTERY_FILENAME, "Artery-Segmentation")
-    # segmentation_tissue_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_TISSUE_FILENAME, "Tissue-Segmentation")
+    segmentation_chambers_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_CHAMBERS_FILENAME, "Chambers-Segmentation")
+    segmentation_effusion_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_EFFUSION_FILENAME, "Effusion-Segmentation")
+    segmentation_artery_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_ARTERY_FILENAME, "Artery-Segmentation")
+    segmentation_tissue_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_TISSUE_FILENAME, "Tissue-Segmentation")
     
     print("loaded segmentations")
 
