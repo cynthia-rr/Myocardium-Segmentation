@@ -1,8 +1,6 @@
 # Constants for input, output, visuals
 from pathlib import Path
 
-from sympy import E
-
 PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/heart/s0338/ct.nii.gz"
 PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
 PATH_FOR_SAVE = Path.home() / "Documents/sjhc/Myocardium-Segmentation/myocardiumsegmentation/saved-segmentations"
