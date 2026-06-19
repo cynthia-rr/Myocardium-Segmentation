@@ -98,18 +98,27 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
     remove_nodes(inner_labelmap, middle_labelmap, outer_labelmap, myocardium_labelmap, ventricle_labelmap)
     return inner_id, middle_id, outer_id # Return segment IDs
 
-def segment_scar(segmentation: slicer.vtkMRMLSegmentationNode, segmentation_effusion_node: slicer.vtkMRMLSegmentationNode, 
-                 editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
-                 scar_segment_id: str, pleural_segment_id: str, border_segment_id: str) -> None:
+def segment_scar(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
+                 scar_segment_id: str) -> None:
     """ 
     Segment the general scar area by using a threshold, and subtracting the pleural border
     """
     threshold_segment(editor_widget, editor_node, scar_segment_id, MIN_SCAR_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
+    # TODO: smooth? maybe a little?
+
+
+def segment_scar_cleanup(segmentation: slicer.vtkMRMLSegmentationNode, segmentation_effusion_node: slicer.vtkMRMLSegmentationNode,
+                         editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
+                         scar_segment_id: str, pleural_segment_id: str, border_segment_id: str) -> None:
+    """
+    Clean up the scar segment by removing the border of the pleural segment from the scar segment
+    """
     segmentation.CopySegmentFromSegmentation(segmentation_effusion_node.GetSegmentation(), pleural_segment_id)
     # Copy the Pleural Effusion into the Border segment 
     union_segments(editor_widget, editor_node, pleural_segment_id, border_segment_id)
     hollow_segment(editor_widget, editor_node, border_segment_id, PLEURAL_BORDER_WIDTH, "INSIDE_SURFACE")
     subtract_segments(editor_widget, editor_node, border_segment_id, scar_segment_id)
+
 
 def segment_scar_in_region(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
                            scar_segment_id: str, region_segment_id: str, destination_segment_id: str) -> None:
