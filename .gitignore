@@ -9,5 +9,3 @@ __pycache__/
 /workspace.xml
 
 # Ignore saved segmentations
-
-/myocardiumsegmentation/saved-segmentations
