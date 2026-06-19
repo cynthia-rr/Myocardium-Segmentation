@@ -3,7 +3,7 @@ from pathlib import Path
 
 PATH_TO_NIFTI = Path.home() / "Downloads/datasets/Totalsegmentator_dataset_v201/heart/s0338/ct.nii.gz"
 PATH_TO_DICOM_FOLDER = Path.home() / "Downloads/datasets/CRA-03"
-PATH_FOR_SAVE = Path.home() / "Documents/sjhc/extension-repo/myocardiumsegmentation/saved-segmentations"
+PATH_FOR_SAVE = Path.home() / "Documents/sjhc/saved-segmentations"
 
 SEGMENTATION_CHAMBERS_FILENAME = "chambers-segmentation3.seg.nrrd"
 SEGMENTATION_EFFUSION_FILENAME = "effusion-segmentation3.seg.nrrd"
