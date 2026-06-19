@@ -1,7 +1,9 @@
+.idea/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
 # Default ignored files
 /shelf/
 /workspace.xml
-
-# Ignore saved segmentations
-
-/myocardiumsegmentation/saved-segmentations

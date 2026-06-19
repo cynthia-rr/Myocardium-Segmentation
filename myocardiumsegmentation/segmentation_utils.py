@@ -2,7 +2,6 @@ import slicer
 from segmentation_constants import *
 
 from typing import Any
-# from io_constants import COLOUR_GREEN
 
 
 def configure_editor(editor_node: slicer.vtkMRMLSegmentEditorNode, *, segment_id: str, 

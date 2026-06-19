@@ -9,7 +9,6 @@ from io_utils import export_segment_to_labelmap, import_labelmap_to_segmentation
 
 def segment_right_myocardium(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode,
                              right_ventricle_segment_id: str, right_myocardium_segment_id: str) -> None:
-    # TODO: write docstring?
     """
     Segment the right myocardium by creating a hollow shell of the right ventricle segment, then growing the shell 
     according to the RIGHT_MYOCARDIUM_GROWTH amount. Return none, mutate the segment using the 
@@ -17,7 +16,8 @@ def segment_right_myocardium(editor_widget: slicer.qMRMLSegmentEditorWidget, edi
     """
     keep_largest_island(editor_widget, editor_node, right_ventricle_segment_id)
     union_segments(editor_widget, editor_node, right_ventricle_segment_id, right_myocardium_segment_id)
-    hollow_segment(editor_widget, editor_node, right_myocardium_segment_id, 1.0, "OUTSIDE_SURFACE") # TODO: make 1.0 a constant
+    hollow_segment(editor_widget, editor_node, right_myocardium_segment_id, 1.5, "OUTSIDE_SURFACE") 
+    # TODO: make 1.5 a constant, smallest value depends on image resolution
     if RIGHT_MYOCARDIUM_GROWTH != 0:
         grow_shrink_segment(editor_widget, editor_node, right_myocardium_segment_id, RIGHT_MYOCARDIUM_GROWTH, #TODO: remove the editable outside segments?
                     EDITABLE_OUTSIDE_ALL_SEGMENTS, MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
@@ -44,7 +44,7 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
     Divide the left myocardium into three layers, inner, middle, outer that extend from the left ventricle 
     and end at the edge of the left myocardium. Return the segment IDs of the inner, middle and outer segments. 
     """
-    # Export myocardium to myocardiumlabel map
+    # Export myocardium to myocardium label mapw
     myocardium_labelmap = export_segment_to_labelmap(segmentation_chambers_node, myocardium_segment_id, volume_node, "MyocardiumLabelMap")
     
     # Export left ventricle segment to ventricle label map
@@ -108,7 +108,7 @@ def segment_scar(segmentation: slicer.vtkMRMLSegmentationNode, segmentation_effu
     segmentation.CopySegmentFromSegmentation(segmentation_effusion_node.GetSegmentation(), pleural_segment_id)
     # Copy the Pleural Effusion into the Border segment 
     union_segments(editor_widget, editor_node, pleural_segment_id, border_segment_id)
-    hollow_segment(editor_widget, editor_node, border_segment_id, 4.0, "INSIDE_SURFACE") # TODO: magic number
+    hollow_segment(editor_widget, editor_node, border_segment_id, PLEURAL_BORDER_WIDTH, "INSIDE_SURFACE")
     subtract_segments(editor_widget, editor_node, border_segment_id, scar_segment_id)
 
 def segment_scar_in_region(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
