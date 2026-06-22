@@ -3,7 +3,7 @@ import os
 
 import vtk
 import numpy as np
-import scipy.ndimage
+import scipy.ndimage # TODO: remove these imports?
 
 import slicer
 from slicer.i18n import tr as _
@@ -18,38 +18,16 @@ from slicer import vtkMRMLScalarVolumeNode, vtkMRMLSegmentationNode
 MIN_THRESHOLD_VALUE = -1024
 MAX_THRESHOLD_VALUE = 3071
 MIN_MYOCARDIUM_THRESHOLD_VALUE = -90 
-MIN_MYOCARDIUM_THRESHOLD_VALUE = -90 
 MAX_MYOCARDIUM_THRESHOLD_VALUE = 300
 MIN_SCAR_THRESHOLD_VALUE = -1024
 MAX_SCAR_THRESHOLD_VALUE = -50
 INNER_MYOCARDIUM_LIMIT = 33
 MIDDLE_MYOCARDIUM_LIMIT = 67
 RIGHT_MYOCARDIUM_GROWTH = 1.0
+# keep legacy defaults
 LEFT_MYOCARDIUM_GROWTH = 1.0
 EDITABLE_ANYWHERE = 0
 EDITABLE_OUTSIDE_ALL_SEGMENTS = 3
-
-def _get_widget_value(widget):
-    if widget is None:
-        return None
-    value_attr = getattr(widget, "value", None)
-    if callable(value_attr):
-        return value_attr()
-    return value_attr
-
-def _get_range_widget_values(range_widget):
-    if range_widget is None:
-        return None, None
-    minimum = getattr(range_widget, "minimumValue", None)
-    maximum = getattr(range_widget, "maximumValue", None)
-    if callable(minimum):
-        minimum = minimum()
-    if callable(maximum):
-        maximum = maximum()
-    return minimum, maximum
-
-
-
 
 
 #
@@ -265,6 +243,27 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
             self.addObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
             self._checkCanApply()
 
+    def _get_widget_value(self, widget):
+        """Return the value of a Qt widget (handles callables like value())."""
+        if widget is None:
+            return None
+        value_attr = getattr(widget, "value", None)
+        if callable(value_attr):
+            return value_attr()
+        return value_attr
+
+    def _get_range_widget_values(self, range_widget):
+        """Return (min, max) from a CTK range widget supporting methods or properties."""
+        if range_widget is None:
+            return None, None
+        minimum = getattr(range_widget, "minimumValue", None)
+        maximum = getattr(range_widget, "maximumValue", None)
+        if callable(minimum):
+            minimum = minimum()
+        if callable(maximum):
+            maximum = maximum()
+        return minimum, maximum
+
     def _checkCanApply(self, caller=None, event=None) -> None:
         if self._parameterNode and self._parameterNode.inputVolume and self._parameterNode.chambersSegmentation:
             self.ui.applyButton.toolTip = _("Segment left and right myocardium")
@@ -275,11 +274,14 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
 
     def onApplyButton(self) -> None:
         """Run processing when user clicks "Apply" button."""
-        right_width = _get_widget_value(self.ui.RightMyocardiumWidthSpinBox)
-        left_width = _get_widget_value(self.ui.LeftMyocardiumWidthSpinBox)
-        inner_percentile, middle_percentile = _get_range_widget_values(self.ui.RangeWidget)
+        right_width = self._get_widget_value(self.ui.RightMyocardiumWidthSpinBox)
+        left_width = self._get_widget_value(self.ui.LeftMyocardiumWidthSpinBox)
+        inner_percentile, middle_percentile = self._get_range_widget_values(self.ui.RangeWidget)
+        min_threshold, max_threshold = self._get_range_widget_values(self.ui.RangeWidget_2)
         if inner_percentile is None or middle_percentile is None:
             raise RuntimeError("Left myocardium layer division values are unavailable.")
+        if min_threshold is None or max_threshold is None:
+            raise RuntimeError("Myocardium threshold range values are unavailable.")
         with slicer.util.tryWithErrorDisplay(_("Failed to compute results."), waitCursor=True):
             self.logic.process(
                 self.ui.inputVolumeSelector.currentNode(),
@@ -288,6 +290,8 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
                 left_myocardium_width=left_width,
                 inner_myocardium_percentile=inner_percentile,
                 middle_myocardium_percentile=middle_percentile,
+                min_threshold=min_threshold,
+                max_threshold=max_threshold,
             )
 
 
@@ -319,8 +323,9 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
                 right_myocardium_width: float = RIGHT_MYOCARDIUM_GROWTH,
                 left_myocardium_width: float = LEFT_MYOCARDIUM_GROWTH,
                 inner_myocardium_percentile: float = INNER_MYOCARDIUM_LIMIT,
-                middle_myocardium_percentile: float = MIDDLE_MYOCARDIUM_LIMIT,
-                showResult: bool = True) -> None:
+                middle_myocardium_percentile: float = MIDDLE_MYOCARDIUM_LIMIT, 
+                min_threshold: float = MIN_MYOCARDIUM_THRESHOLD_VALUE, 
+                max_threshold: float = MAX_MYOCARDIUM_THRESHOLD_VALUE) -> None:
         """
         Run the left/right myocardium segmentation algorithm.
         Can be used without GUI widget.
@@ -356,8 +361,10 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         editor_widget.setSourceVolumeNode(input_volume)
 
         effects = MyocardiumSegmentationLogic(editor_widget, segment_editor_node)
-        effects.segment_right_myocardium(right_ventricle_id, right_myocardium_id, right_myocardium_width)
-        effects.improve_left_myocardium(segmentation, left_ventricle_id, left_myocardium_id, left_myocardium_width)
+        effects.segment_right_myocardium(right_ventricle_id, right_myocardium_id, right_myocardium_width,
+                         min_threshold, max_threshold)
+        effects.improve_left_myocardium(segmentation, left_ventricle_id, left_myocardium_id, left_myocardium_width,
+                        min_threshold, max_threshold)
         effects.divide_myocardium(
             input_volume,
             segmentation_chambers_node,
@@ -440,24 +447,28 @@ class MyocardiumSegmentationLogic:
 
     def segment_right_myocardium(self, right_ventricle_segment_id: str,
                                  right_myocardium_segment_id: str,
-                                 width_mm: float) -> None:
+                                 width_mm: float, 
+                                 min_threshold: float, 
+                                 max_threshold: float) -> None:
         self.keep_largest_island(right_ventricle_segment_id)
         self.union_segments(right_ventricle_segment_id, right_myocardium_segment_id)
         self.hollow_segment(right_myocardium_segment_id, 1.5, "OUTSIDE_SURFACE")
         if width_mm != 0:
             self.grow_shrink_segment(right_myocardium_segment_id, width_mm,
                                      EDITABLE_OUTSIDE_ALL_SEGMENTS,
-                                     MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
+                                     min_threshold, max_threshold)
         self.smooth_segment(right_myocardium_segment_id, max(width_mm / 2, 1.0))
 
     def improve_left_myocardium(self, segmentation: slicer.vtkMRMLSegmentationNode,
                                 left_ventricle_segment_id: str,
                                 left_myocardium_segment_id: str,
-                                width_mm: float) -> None:
+                                width_mm: float,
+                                min_threshold: float, 
+                                max_threshold: float) -> None:
         if width_mm != 0:
             self.grow_shrink_segment(left_myocardium_segment_id, width_mm,
                                      EDITABLE_OUTSIDE_ALL_SEGMENTS,
-                                     MIN_MYOCARDIUM_THRESHOLD_VALUE, MAX_MYOCARDIUM_THRESHOLD_VALUE)
+                                     min_threshold, max_threshold)
         self.smooth_segment(left_myocardium_segment_id, max(1.5, width_mm / 2))
         self.create_closed_loop(segmentation, left_myocardium_segment_id, left_ventricle_segment_id)
     
@@ -566,7 +577,7 @@ def import_labelmap_to_segmentation(labelmap_node: slicer.vtkMRMLLabelMapVolumeN
     new_ids = updated_ids - existing_ids
 
     if len(new_ids) != 1:
-        raise RuntimeError("Expected exactly one imported segment.")
+        raise RuntimeError("Expected exactly one imported segment. New ids: ", len(new_ids))
 
     return new_ids.pop()
 
