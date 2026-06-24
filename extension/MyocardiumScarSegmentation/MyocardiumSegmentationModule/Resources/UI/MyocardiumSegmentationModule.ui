@@ -17,7 +17,7 @@
       <string>Select the input nodes.</string>
      </property>
      <property name="text">
-      <string>Inputs</string>
+      <string>Initial Segmentation</string>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
       <item row="0" column="0">
@@ -51,15 +51,21 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="SegmentationLabel">
+      <item row="3" column="1">
+       <widget class="QPushButton" name="segmentButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Click to run the segmentation.</string>
+        </property>
         <property name="text">
-         <string>Myocardium segmentation:</string>
+         <string>Segment</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="qMRMLNodeComboBox" name="SegmentationSelector">
+       <widget class="qMRMLNodeComboBox" name="segmentationSelector">
         <property name="toolTip">
          <string>Pick the chambers segmentation node.</string>
         </property>
@@ -75,13 +81,23 @@
          <bool>false</bool>
         </property>
         <property name="addEnabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="removeEnabled">
          <bool>false</bool>
         </property>
+        <property name="editEnabled">
+         <bool>false</bool>
+        </property>
         <property name="SlicerParameterName" stdset="0">
          <string>chambersSegmentation</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="outputLabel">
+        <property name="text">
+         <string>Output segmentation:               </string>
         </property>
        </widget>
       </item>
@@ -204,20 +220,20 @@
         </property>
        </widget>
       </item>
+      <item row="4" column="1">
+       <widget class="QPushButton" name="updateButton">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="toolTip">
+         <string>Click to update</string>
+        </property>
+        <property name="text">
+         <string>Update</string>
+        </property>
+       </widget>
+      </item>
      </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPushButton" name="applyButton">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="toolTip">
-      <string>Click to run the segmentation.</string>
-     </property>
-     <property name="text">
-      <string>Apply</string>
-     </property>
     </widget>
    </item>
    <item>
@@ -280,7 +296,7 @@
   <connection>
    <sender>MyocardiumSegmentationModule</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>SegmentationSelector</receiver>
+   <receiver>segmentationSelector</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
     <hint type="sourcelabel">
