@@ -3,31 +3,40 @@ import os
 
 import vtk
 import numpy as np
-import scipy.ndimage # TODO: remove these imports?
+import scipy.ndimage
 
 import slicer
 from slicer.i18n import tr as _
 from slicer.i18n import translate
-from slicer.ScriptedLoadableModule import *
-from slicer.util import VTKObservationMixin
+from slicer.ScriptedLoadableModule import (
+    ScriptedLoadableModule,
+    ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
+    ScriptedLoadableModuleWidget,
+)
 from slicer.parameterNodeWrapper import parameterNodeWrapper
+from slicer.util import VTKObservationMixin
 
 from slicer import vtkMRMLScalarVolumeNode, vtkMRMLSegmentationNode
 
 
 MIN_THRESHOLD_VALUE = -1024
 MAX_THRESHOLD_VALUE = 3071
-MIN_MYOCARDIUM_THRESHOLD_VALUE = -90 
-MAX_MYOCARDIUM_THRESHOLD_VALUE = 300
 MIN_SCAR_THRESHOLD_VALUE = -1024
 MAX_SCAR_THRESHOLD_VALUE = -50
+MIN_MYOCARDIUM_THRESHOLD_VALUE = -90 
+MAX_MYOCARDIUM_THRESHOLD_VALUE = 300
+
 INNER_MYOCARDIUM_LIMIT = 33
 MIDDLE_MYOCARDIUM_LIMIT = 67
+
 RIGHT_MYOCARDIUM_GROWTH = 1.0
+LEFT_MYOCARDIUM_GROWTH = 0.0
+
 # keep legacy defaults
-LEFT_MYOCARDIUM_GROWTH = 1.0
 EDITABLE_ANYWHERE = 0
 EDITABLE_OUTSIDE_ALL_SEGMENTS = 3
+
 
 
 #
@@ -121,15 +130,22 @@ class MyocardiumSegmentationModuleParameterNode:
     """
     The parameters needed by module.
 
-    inputVolume - The volume to threshold.
-    imageThreshold - The value at which to threshold the input volume.
-    invertThreshold - If true, will invert the threshold.
-    thresholdedVolume - The output volume that will contain the thresholded volume.
-    invertedVolume - The output volume that will contain the inverted thresholded volume.
+    inputVolume - The volume to segment the myocardium and scar from.
+    chambersSegmentation - The segmentation node that has the left and right ventricles, left myocardium segments.
+    myocardiumRange - The range of HU values for myocardium tissue.
+    rightMyocardiumWidth - The width of the right myocardium in mm.
+    leftMyocardiumGrowth - The growth of the left myocardium in mm to be thicker or thinner.
+    myocardiumDivision - The percentile range for the middle layer of the left myocardium.
     """
+
 
     inputVolume: vtkMRMLScalarVolumeNode
     chambersSegmentation: vtkMRMLSegmentationNode
+    myocardiumRange: tuple[int, int]
+    rightMyocardiumWidth: float
+    leftMyocardiumGrowth: float
+    myocardiumDivision: tuple[int, int]
+
 
 
 #
@@ -225,6 +241,7 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
             firstSegmentationNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLSegmentationNode")
             if firstSegmentationNode:
                 self._parameterNode.chambersSegmentation = firstSegmentationNode
+        
 
     def setParameterNode(self, inputParameterNode: MyocardiumSegmentationModuleParameterNode | None) -> None:
         """
@@ -287,7 +304,7 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
                 self.ui.inputVolumeSelector.currentNode(),
                 self.ui.SegmentationSelector.currentNode(),
                 right_myocardium_width=right_width,
-                left_myocardium_width=left_width,
+                left_myocardium_growth=left_width,
                 inner_myocardium_percentile=inner_percentile,
                 middle_myocardium_percentile=middle_percentile,
                 min_threshold=min_threshold,
@@ -310,28 +327,37 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
 
-    def __init__(self) -> None:
+    def __init__(self, editor_widget: slicer.qMRMLSegmentEditorWidget = None,
+                 editor_node: slicer.vtkMRMLSegmentEditorNode = None) -> None:
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
         ScriptedLoadableModuleLogic.__init__(self)
+        self.editor_widget = editor_widget
+        self.editor_node = editor_node
 
     def getParameterNode(self):
         return MyocardiumSegmentationModuleParameterNode(super().getParameterNode())
 
-    def process(self,
+    def process(self, # TODO: too many parameters? make a class or something
                 input_volume: vtkMRMLScalarVolumeNode,
                 segmentation_chambers_node: vtkMRMLSegmentationNode,
-                right_myocardium_width: float = RIGHT_MYOCARDIUM_GROWTH,
-                left_myocardium_width: float = LEFT_MYOCARDIUM_GROWTH,
-                inner_myocardium_percentile: float = INNER_MYOCARDIUM_LIMIT,
-                middle_myocardium_percentile: float = MIDDLE_MYOCARDIUM_LIMIT, 
-                min_threshold: float = MIN_MYOCARDIUM_THRESHOLD_VALUE, 
-                max_threshold: float = MAX_MYOCARDIUM_THRESHOLD_VALUE) -> None:
+                right_myocardium_width: float,
+                left_myocardium_growth: float,
+                inner_myocardium_percentile: float,
+                middle_myocardium_percentile: float, 
+                min_threshold: float, 
+                max_threshold: float) -> None:
         """
         Run the left/right myocardium segmentation algorithm.
         Can be used without GUI widget.
-        :param inputVolume: input volume used by the segment editor
-        :param chambersSegmentation: segmentation node containing left/right ventricles and myocardium
-        :param showResult: whether to keep the segment editor internal node visible while running
+        :param input_volume: input volume used by the segment editor
+        :param segmentation_chambers_node: segmentation node containing left/right ventricles and myocardium
+        :param right_myocardium_width: thickness of right myocardium in mm
+        :param left_myocardium_growth: how much thicker or thinner the left myocardium should be
+          compared to the original segment
+        :param inner_myocardium_percentile: percentage of left myocardium attributed to the inner layer
+        :param middle_myocardium_percentile: percentage of the left myocardium attributed to the inner and middle layers
+        :param min_threshold: minimum HU threshold for myocardium tissue 
+        :param max_threshold: maximum HU threshold for myocardium tissue
         """
 
         if not input_volume or not segmentation_chambers_node:
@@ -360,12 +386,12 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         editor_widget.setSegmentationNode(segmentation_chambers_node)
         editor_widget.setSourceVolumeNode(input_volume)
 
-        effects = MyocardiumSegmentationLogic(editor_widget, segment_editor_node)
-        effects.segment_right_myocardium(right_ventricle_id, right_myocardium_id, right_myocardium_width,
+        segmentation_logic = MyocardiumSegmentationModuleLogic(editor_widget, segment_editor_node)
+        segmentation_logic.segment_right_myocardium(right_ventricle_id, right_myocardium_id, right_myocardium_width,
                          min_threshold, max_threshold)
-        effects.improve_left_myocardium(segmentation, left_ventricle_id, left_myocardium_id, left_myocardium_width,
+        segmentation_logic.improve_left_myocardium(segmentation, left_ventricle_id, left_myocardium_id, left_myocardium_growth,
                         min_threshold, max_threshold)
-        effects.divide_myocardium(
+        segmentation_logic.divide_myocardium(
             input_volume,
             segmentation_chambers_node,
             left_myocardium_id,
@@ -380,14 +406,6 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         slicer.mrmlScene.RemoveNode(segment_editor_node)
 
         logging.info("Myocardium segmentation completed")
-
-
-
-class MyocardiumSegmentationLogic:
-    def __init__(self, editor_widget: slicer.qMRMLSegmentEditorWidget,
-                 editor_node: slicer.vtkMRMLSegmentEditorNode):
-        self.editor_widget = editor_widget
-        self.editor_node = editor_node
 
     def configure_editor(self, segment_id: str,
                          overwrite_mode=slicer.vtkMRMLSegmentEditorNode.OverwriteNone,
@@ -471,7 +489,6 @@ class MyocardiumSegmentationLogic:
                                      min_threshold, max_threshold)
         self.smooth_segment(left_myocardium_segment_id, max(1.5, width_mm / 2))
         self.create_closed_loop(segmentation, left_myocardium_segment_id, left_ventricle_segment_id)
-    
 
     def divide_myocardium(self, volume_node: slicer.vtkMRMLScalarVolumeNode,
                           segmentation_chambers_node: slicer.vtkMRMLSegmentationNode,
