@@ -18,7 +18,7 @@ def main():
     # segmentation_name_to_node = run_totalsegmentator_pipeline(volume_node)
     segmentation_name_to_node = run_totalsegmentator_pipeline(volume_node)
 
-    # # extract the segmentation nodes from the dictionary # TODO: make this constant variables
+    # extract the segmentation nodes from the dictionary # TODO: make this constant variables
     # segmentation_chambers_node = segmentation_name_to_node["Chambers-Segmentation"]
     # segmentation_effusion_node = segmentation_name_to_node["Effusion-Segmentation"]
     # segmentation_artery_node = segmentation_name_to_node["Artery-Segmentation"]
@@ -103,8 +103,8 @@ def main():
     set_segments_visibility(segmentation_chambers_node, segmentation, [left_inner_id, left_middle_id, left_outer_id, 
         right_myocardium_id, inner_scar_id, middle_scar_id, outer_scar_id, right_scar_id], volume_node)
     segmentation_effusion_node.GetDisplayNode().SetAllSegmentsVisibility(False)
-    segmentation_artery_node.GetDisplayNode().SetAllSegmentsVisibility(False)
-    segmentation_tissue_node.GetDisplayNode().SetAllSegmentsVisibility(False)
+    # segmentation_artery_node.GetDisplayNode().SetAllSegmentsVisibility(False)
+    # segmentation_tissue_node.GetDisplayNode().SetAllSegmentsVisibility(False)
 
     print("Done segmentation!")
 

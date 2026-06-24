@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME MyocardiumSegmentation)
+set(MODULE_NAME MyocardiumSegmentationModule)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
