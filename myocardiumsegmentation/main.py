@@ -3,20 +3,19 @@ import slicer
 from io_utils import load_dicom_series, load_segmentation
 from totalsegmentator_pipeline import run_totalsegmentator_pipeline
 from cardiac_analysis import (segment_right_myocardium, improve_left_myocardium, 
-                              segment_scar, segment_scar_sections, divide_myocardium)
+                              segment_scar, segment_scar_cleanup, segment_scar_sections, divide_myocardium)
 from visualization import set_segments_visibility
 from io_constants import *
 
 def main():
     # Load input data
-    # volume_node = load_dicom_series(PATH_TO_DICOM_FOLDER)
+    volume_node = load_dicom_series(PATH_TO_DICOM_FOLDER)
     
     # Load the NIFTI file
-    volume_node = slicer.util.loadVolume(str(PATH_TO_NIFTI))
+    # volume_node = slicer.util.loadVolume(str(PATH_TO_NIFTI))
 
     # Run TotalSegmentator
     # segmentation_name_to_node = run_totalsegmentator_pipeline(volume_node)
-    segmentation_name_to_node = run_totalsegmentator_pipeline(volume_node)
 
     # extract the segmentation nodes from the dictionary # TODO: make this constant variables
     # segmentation_chambers_node = segmentation_name_to_node["Chambers-Segmentation"]
@@ -26,10 +25,10 @@ def main():
 
     # Uncomment the below 4 lines if running only Myocardium Segmentation 
     # (already ran TotalSegmentation separately and saved resultd)
-    # segmentation_chambers_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_CHAMBERS_FILENAME, "Chambers-Segmentation")
-    # segmentation_effusion_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_EFFUSION_FILENAME, "Effusion-Segmentation")
-    # segmentation_artery_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_ARTERY_FILENAME, "Artery-Segmentation")
-    # segmentation_tissue_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_TISSUE_FILENAME, "Tissue-Segmentation")
+    segmentation_chambers_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_CHAMBERS_FILENAME, "Chambers-Segmentation")
+    segmentation_effusion_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_EFFUSION_FILENAME, "Effusion-Segmentation")
+    segmentation_artery_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_ARTERY_FILENAME, "Artery-Segmentation")
+    segmentation_tissue_node = load_segmentation(PATH_FOR_SAVE/SEGMENTATION_TISSUE_FILENAME, "Tissue-Segmentation")
     
     print("loaded segmentations")
 
@@ -90,8 +89,9 @@ def main():
     # Segment general scar areas
     print("Segmenting scar...")
 
-    segment_scar(segmentation, segmentation_effusion_node, segment_editor_widget,
-                 segment_editor_node, scar_id, pleural_id, border_id)
+    segment_scar(segment_editor_widget, segment_editor_node, scar_id)
+    segment_scar_cleanup(segmentation, segmentation_effusion_node, segment_editor_widget, 
+                         segment_editor_node, scar_id, pleural_id, border_id)
 
     # map from region segment id to scar segment id
     region_map = {left_myocardium_id: left_scar_id, right_myocardium_id: right_scar_id, left_inner_id: inner_scar_id,
