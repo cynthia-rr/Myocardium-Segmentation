@@ -75,7 +75,7 @@ def hollow_segment(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: 
     Hollow the segment with the given thickness and orientation (shell mode)
     """
     configure_editor(editor_node, segment_id=destination_segment_id, mask_enabled=False, mask_mode=EDITABLE_ANYWHERE)
-    apply_effect(editor_widget, "Hollow", {"ShellThicknessMm":thickness_mm, "ShellMode":shell_mode, "ApplyToAllVisibleSegments":0})
+    apply_effect(editor_widget, "Hollow", {"ShellThicknessMm": thickness_mm, "ShellMode": shell_mode, "ApplyToAllVisibleSegments": 0})
     
 
 def grow_shrink_segment(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
@@ -109,13 +109,15 @@ def threshold_segment(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_nod
 
 def create_closed_loop(segmentation: slicer.vtkMRMLSegmentationNode, editor_widget: slicer.qMRMLSegmentEditorWidget,
     editor_node: slicer.vtkMRMLSegmentEditorNode, left_myocardium_segment_id: str, left_ventricle_segment_id: str):
-    
+    """
+    Ensure that the left myocaridum segment is a closed volume/loop (no holes) by calling hollow on the 
+    left ventricle segment and unioning it with the left myocardium segment
+    """    
     temp_segment_id = segmentation.AddEmptySegment("hollow-left-ventricle", "hollow")
 
-    try:
-        union_segments(editor_widget, editor_node, left_ventricle_segment_id, temp_segment_id)
-        hollow_segment(editor_widget, editor_node, temp_segment_id, thickness_mm=1.0, shell_mode="INSIDE_SURFACE")
-        union_segments(editor_widget, editor_node, temp_segment_id, left_myocardium_segment_id)
+    union_segments(editor_widget, editor_node, left_ventricle_segment_id, temp_segment_id)
+    hollow_segment(editor_widget, editor_node, temp_segment_id, thickness_mm=1.5, shell_mode="INSIDE_SURFACE") 
+    # TODO: change 1.5 to the min value based on the resolution of the file
+    union_segments(editor_widget, editor_node, temp_segment_id, left_myocardium_segment_id)
 
-    finally:
-        segmentation.RemoveSegment(temp_segment_id)
+    segmentation.RemoveSegment(temp_segment_id)

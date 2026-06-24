@@ -15,6 +15,11 @@ EFFUSION = "effusion"
 ARTERY = "artery"
 TISSUE = "tissue"
 
+CHAMBERS = "chambers"
+EFFUSION = "effusion"
+ARTERY = "artery"
+TISSUE = "tissue"
+
 DISPLAY_WINDOW = 800
 DISPLAY_LEVEL = 200
 
