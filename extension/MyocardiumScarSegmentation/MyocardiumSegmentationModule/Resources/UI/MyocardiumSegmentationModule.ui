@@ -54,8 +54,15 @@
         </property>
        </widget>
       </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="SegmentationLabel">
+        <property name="text">
+         <string>Segmentation node:                  </string>
+        </property>
+       </widget>
+      </item>
       <item row="1" column="1">
-       <widget class="qMRMLNodeComboBox" name="IntermediateSegmentationSelector">
+       <widget class="qMRMLNodeComboBox" name="SegmentationSelector">
         <property name="toolTip">
          <string>Select the segmentation node for the intemediate segmentation.</string>
         </property>
@@ -80,14 +87,7 @@
          <bool>false</bool>
         </property>
         <property name="SlicerParameterName" stdset="0">
-         <string>intermediateSegmentation</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="IntermediateSegmentationLabel">
-        <property name="text">
-         <string>Intermediate segmentation:     </string>
+         <string>segmentationNode</string>
         </property>
        </widget>
       </item>
@@ -101,53 +101,6 @@
         </property>
         <property name="text">
          <string>Segment</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="FinalSegmentationLabel">
-        <property name="text">
-         <string>Final segmentation:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="qMRMLNodeComboBox" name="FinalSegmentationSelector">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="toolTip">
-         <string>Select the final segmentation node.</string>
-        </property>
-        <property name="nodeTypes">
-         <stringlist notr="true">
-          <string>vtkMRMLSegmentationNode</string>
-         </stringlist>
-        </property>
-        <property name="showChildNodeTypes">
-         <bool>false</bool>
-        </property>
-        <property name="hideChildNodeTypes">
-         <stringlist notr="true"/>
-        </property>
-        <property name="removeEnabled">
-         <bool>false</bool>
-        </property>
-        <property name="interactionNodeSingletonTag">
-         <string notr="true"/>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="QPushButton" name="UpdateButton">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="toolTip">
-         <string>Click to update</string>
-        </property>
-        <property name="text">
-         <string>Update</string>
         </property>
        </widget>
       </item>
@@ -270,6 +223,19 @@
         </property>
        </widget>
       </item>
+      <item row="4" column="1">
+       <widget class="QPushButton" name="UpdateButton">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="toolTip">
+         <string>Click to update</string>
+        </property>
+        <property name="text">
+         <string>Update Segmentation</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -333,7 +299,7 @@
   <connection>
    <sender>MyocardiumSegmentationModule</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>IntermediateSegmentationSelector</receiver>
+   <receiver>SegmentationSelector</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -343,22 +309,6 @@
     <hint type="destinationlabel">
      <x>248</x>
      <y>91</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>MyocardiumSegmentationModule</sender>
-   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>FinalSegmentationSelector</receiver>
-   <slot>setMRMLScene(vtkMRMLScene*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>246</x>
-     <y>281</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>338</x>
-     <y>149</y>
     </hint>
    </hints>
   </connection>

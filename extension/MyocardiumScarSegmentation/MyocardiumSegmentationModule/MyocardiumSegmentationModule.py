@@ -1,6 +1,6 @@
 import logging
 import os
-from token import LEFTSHIFTEQUAL
+# from token import LEFTSHIFTEQUAL
 
 import vtk
 from typing import Any
@@ -19,22 +19,15 @@ from slicer.util import VTKObservationMixin
 from slicer import vtkMRMLScalarVolumeNode, vtkMRMLSegmentationNode
 
 
-# MIN_THRESHOLD_VALUE = -1024
-# MAX_THRESHOLD_VALUE = 3071
-# MIN_SCAR_THRESHOLD_VALUE = -1024
-# MAX_SCAR_THRESHOLD_VALUE = -50
-# MIN_MYOCARDIUM_THRESHOLD_VALUE = -90 
-# MAX_MYOCARDIUM_THRESHOLD_VALUE = 301
-# INNER_MYOCARDIUM_LIMIT = 50
-# MIDDLE_MYOCARDIUM_LIMIT = 68
-# RIGHT_MYOCARDIUM_WIDTH = 2.0
-# LEFT_MYOCARDIUM_GROWTH = 0.0
 
 
 SEGMENTATION_QUALITY = "normal"
 SEGMENTATION_CHAMBERS_TASK = "heartchambers_highres"
 SEGMENTATION_CHAMBERS_NODE_NAME = "Chambers-Segmentation"
-
+COLOUR_PINK = (1.0, 0.8, 1.0)
+COLOUR_GREEN = (0.6, 0.8, 0.6)
+COLOUR_LIGHT_BLUE = (0.7, 0.8, 1.0)
+COLOUR_PURPLE = (0.6, 0.5, 1.0)
 
 # keep legacy defaults
 EDITABLE_ANYWHERE = 0
@@ -125,8 +118,7 @@ class MyocardiumSegmentationModuleParameterNode:
     The parameters needed by module.
 
     inputVolume - The volume to segment the myocardium and scar from.
-    intermediateSegmentation - The intermediate segmentation node with left/right ventricles and myocardium (input).
-    finalSegmentation - The final segmentation node to be altered with refinements and divisions (output).
+    segmentationNode - The segmentation node with left/right ventricles and myocardium (input).
     myocardiumLowerThreshold - The lower threshold of HU values for myocardium tissue.
     myocardiumUpperThreshold - The upper threshold of HU values for myocardium tissue.
     rightMyocardiumWidth - The width of the right myocardium in mm.
@@ -136,8 +128,7 @@ class MyocardiumSegmentationModuleParameterNode:
     """
 
     inputVolume: vtkMRMLScalarVolumeNode
-    intermediateSegmentation: vtkMRMLSegmentationNode
-    finalSegmentation: vtkMRMLSegmentationNode
+    segmentationNode: vtkMRMLSegmentationNode
     myocardiumLowerThreshold: float
     myocardiumUpperThreshold: float
     rightMyocardiumWidth: float
@@ -185,10 +176,10 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
         # Buttons
         self.ui.SegmentButton.connect("clicked(bool)", self.onSegment)
         self.ui.UpdateButton.connect("clicked(bool)", self.onUpdate)
-        self.ui.InputVolumeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanSegment)
+        self.ui.InputVolumeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanSegment) 
         self.ui.InputVolumeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanUpdate)
-        self.ui.IntermediateSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanSegment)
-        self.ui.FinalSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanUpdate)
+        self.ui.SegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanSegment)
+        self.ui.SegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanUpdate)
 
         self.initializeParameterNode()
         self._checkCanSegment()
@@ -230,16 +221,11 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
             if firstVolumeNode:
                 self._parameterNode.inputVolume = firstVolumeNode
                 self.ui.InputVolumeSelector.setCurrentNode(firstVolumeNode)
-        if not self._parameterNode.intermediateSegmentation:
-            intermediateSegmentationNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLSegmentationNode")
-            if intermediateSegmentationNode:
-                self._parameterNode.intermediateSegmentation = intermediateSegmentationNode
-                self.ui.IntermediateSegmentationSelector.setCurrentNode(intermediateSegmentationNode)
-        if not self._parameterNode.finalSegmentation:
-            finalSegmentationNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLSegmentationNode")
-            if finalSegmentationNode:
-                self._parameterNode.finalSegmentation = finalSegmentationNode
-                self.ui.FinalSegmentationSelector.setCurrentNode(finalSegmentationNode)
+        if not self._parameterNode.segmentationNode:
+            segmentationNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLSegmentationNode")
+            if segmentationNode:
+                self._parameterNode.segmentationNode = segmentationNode
+                self.ui.segmentationSelector.setCurrentNode(segmentationNode)
 
     def setParameterNode(self, inputParameterNode: MyocardiumSegmentationModuleParameterNode | None) -> None:
         """Set and observe parameter node."""
@@ -257,13 +243,13 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
         Check if the user is able to segment.
         """
         input_volume = self.ui.InputVolumeSelector.currentNode()
-        intermediate_segmentation = self.ui.IntermediateSegmentationSelector.currentNode()
+        segmentation_node = self.ui.SegmentationSelector.currentNode()
 
-        if input_volume and intermediate_segmentation:
+        if input_volume and segmentation_node:
             self.ui.SegmentButton.toolTip = _("Run TotalSegmentator chamber segmentation")
             self.ui.SegmentButton.enabled = True
         else:
-            self.ui.SegmentButton.toolTip = _("Select an input volume and intermediate segmentation.")
+            self.ui.SegmentButton.toolTip = _("Select an input volume and segmentation.")
             self.ui.SegmentButton.enabled = False
 
     def _checkCanUpdate(self, caller=None, event=None) -> None:
@@ -271,14 +257,13 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
         Check if the user is able to update the segmentation.
         """
         input_volume = self.ui.InputVolumeSelector.currentNode()
-        intermediate_segmentation = self.ui.IntermediateSegmentationSelector.currentNode()
-        final_segmentation = self.ui.FinalSegmentationSelector.currentNode()
+        segmentation_node = self.ui.SegmentationSelector.currentNode()
 
-        if input_volume and intermediate_segmentation and final_segmentation:
+        if input_volume and segmentation_node:
             self.ui.UpdateButton.toolTip = _("Click to segment right myocardium and divide the left myocardium.")
             self.ui.UpdateButton.enabled = True
         else:
-            self.ui.UpdateButton.toolTip = _("Select an input volume, intermediate segmentation and final segmentation")
+            self.ui.UpdateButton.toolTip = _("Select an input volume and segmentation")
             self.ui.UpdateButton.enabled = False
 
     def _get_widget_value(self, widget) -> Any:
@@ -316,23 +301,19 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
         self._parameterNode.myocardiumMiddleLimit = middle_percentile
         self._parameterNode.myocardiumLowerThreshold = min_threshold
         self._parameterNode.myocardiumUpperThreshold = max_threshold
-        self._parameterNode.intermediateSegmentation = self.ui.IntermediateSegmentationSelector.currentNode()
-        self._parameterNode.finalSegmentation = self.ui.FinalSegmentationSelector.currentNode()
+        self._parameterNode.segmentationNode = self.ui.SegmentationSelector.currentNode()
 
         if inner_percentile is None or middle_percentile is None:
             raise RuntimeError("Left myocardium layer division values are unavailable.")
         if min_threshold is None or max_threshold is None:
             raise RuntimeError("Myocardium threshold range values are unavailable.")
-        if not self._parameterNode.intermediateSegmentation:
-            raise RuntimeError("Intermediate chambers segmentation is not selected.")
-        if not self._parameterNode.finalSegmentation:
-            raise RuntimeError("Final segmentation is not selected.")
+        if not self._parameterNode.segmentationNode:
+            raise RuntimeError("Segmentation is not selected.")
 
         with slicer.util.tryWithErrorDisplay(_("Failed to compute results."), waitCursor=True):
             self.logic.process(
                 self._parameterNode.inputVolume,
-                self._parameterNode.intermediateSegmentation,
-                self._parameterNode.finalSegmentation,
+                self._parameterNode.segmentationNode,
                 self._parameterNode.rightMyocardiumWidth,
                 self._parameterNode.leftMyocardiumGrowth,
                 self._parameterNode.myocardiumInnerLimit,
@@ -347,8 +328,8 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
 
         with slicer.util.tryWithErrorDisplay(_("Failed to run TotalSegmentator."), waitCursor=True):
             chambers_node = self.logic.run_total_segmentator_chambers(self._parameterNode.inputVolume)
-            self._parameterNode.intermediateSegmentation = chambers_node
-            self.ui.IntermediateSegmentationSelector.setCurrentNode(chambers_node)
+            self._parameterNode.segmentationNode = chambers_node
+            self.ui.SegmentationSelector.setCurrentNode(chambers_node)
             self._checkCanUpdate()
 
 
@@ -403,8 +384,7 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
 
     def process(self,
                 input_volume: vtkMRMLScalarVolumeNode,
-                intermediate_segmentation_node: vtkMRMLSegmentationNode,
-                final_segmentation_node: vtkMRMLSegmentationNode,
+                segmentation_node: vtkMRMLSegmentationNode,
                 right_myocardium_width: float,
                 left_myocardium_growth: float,
                 inner_myocardium_percentile: float,
@@ -415,11 +395,9 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         Run the left/right myocardium segmentation algorithm.
         Can be used without GUI widget.
         :param input_volume: input volume used by the segment editor
-        :param intermediate_segmentation_node: intermediate segmentation node containing left/right ventricles and myocardium (input)
-        :param final_segmentation_node: final segmentation node to be altered with refinements and divisions (output)
+        :param segmentation_node: segmentation node containing left/right ventricles and myocardium (input)
         :param right_myocardium_width: thickness of right myocardium in mm
-        :param left_myocardium_growth: how much thicker or thinner the left myocardium should be
-          compared to the original segment
+        :param left_myocardium_growth: how much thicker or thinner the left myocardium should be compared to the original segment
         :param inner_myocardium_percentile: percentage of left myocardium attributed to the inner layer
         :param middle_myocardium_percentile: percentage of the left myocardium attributed to the inner and middle layers
         :param min_threshold: minimum HU threshold for myocardium tissue 
@@ -432,49 +410,65 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
 
         logging.info("Myocardium segmentation started")
 
-        # Copy intermediate segmentation to final segmentation
-        segmentation_final = final_segmentation_node.GetSegmentation()
-        segmentation_final.DeepCopy(intermediate_segmentation_node.GetSegmentation())
+        segmentation_myocardium = segmentation_node.GetSegmentation()
 
-        left_myocardium_id = segmentation_final.GetSegmentIdBySegmentName("myocardium")
+        # If there are old inner, middle, outer myocardium segments from previous process, remove them
+        for name in {"inner left myocardium", "middle left myocardium", "outer left myocardium"}:
+            temp_id = segmentation_myocardium.GetSegmentIdBySegmentName(name)
+            if temp_id: # If not None, then remove
+                segmentation_myocardium.RemoveSegment(temp_id)
+
+
+
+        left_myocardium_id = segmentation_myocardium.GetSegmentIdBySegmentName("myocardium")
         if not left_myocardium_id:
             raise RuntimeError("Could not find segment named 'myocardium' in the chambers segmentation.")
-        segmentation_final.GetSegment(left_myocardium_id).SetName("left myocardium")
 
-        right_ventricle_id = segmentation_final.GetSegmentIdBySegmentName("right ventricle of heart")
-        left_ventricle_id = segmentation_final.GetSegmentIdBySegmentName("left ventricle of heart")
+        right_ventricle_id = segmentation_myocardium.GetSegmentIdBySegmentName("right ventricle of heart")
+        left_ventricle_id = segmentation_myocardium.GetSegmentIdBySegmentName("left ventricle of heart")
         if not right_ventricle_id or not left_ventricle_id:
             raise RuntimeError("Could not find required ventricle segments in the chambers segmentation.")
 
-        
-        right_myocardium_id = segmentation_final.AddEmptySegment("heart_myocardium_right", "right myocardium")
-        final_segmentation_node.GetSegmentation().GetSegment(right_myocardium_id).SetColor((0.65, 0.20, 1.0))
+        right_myocardium_id = segmentation_myocardium.GetSegmentIdBySegmentName("right_myocardium")
+        if right_myocardium_id: # If not None, then remove the old segment before making another
+            segmentation_myocardium.RemoveSegment(right_myocardium_id)
+        # Create a new segment
+        right_myocardium_id = segmentation_myocardium.AddEmptySegment("heart_myocardium_right", "right myocardium")
+        segmentation_myocardium.GetSegment(right_myocardium_id).SetColor(COLOUR_PURPLE)
 
         # Create Segment Editor
         segment_editor_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentEditorNode", "SegmentEditorNode")
         editor_widget = slicer.qMRMLSegmentEditorWidget()
         editor_widget.setMRMLScene(slicer.mrmlScene)
         editor_widget.setMRMLSegmentEditorNode(segment_editor_node)
-        editor_widget.setSegmentationNode(final_segmentation_node)
+        editor_widget.setSegmentationNode(segmentation_node)
         editor_widget.setSourceVolumeNode(input_volume)
 
         segmentation_logic = MyocardiumSegmentationModuleLogic(editor_widget, segment_editor_node)
         segmentation_logic.segment_right_myocardium(right_ventricle_id, right_myocardium_id, right_myocardium_width,
                          min_threshold, max_threshold)
-        segmentation_logic.improve_left_myocardium(segmentation_final, left_ventricle_id, left_myocardium_id, left_myocardium_growth,
+        segmentation_logic.improve_left_myocardium(segmentation_myocardium, left_ventricle_id, left_myocardium_id, left_myocardium_growth,
                         min_threshold, max_threshold)
         inner_id, middle_id, outer_id = segmentation_logic.divide_myocardium(
             input_volume,
-            final_segmentation_node,
+            segmentation_node,
             left_myocardium_id,
             left_ventricle_id,
             inner_myocardium_percentile,
             middle_myocardium_percentile,
         )
 
-        segmentation_logic.set_segments_visibility(final_segmentation_node, 
-                                                   [inner_id, middle_id, outer_id, right_myocardium_id], 
-                                                   input_volume)
+        segmentation_myocardium.GetSegment(inner_id).SetName("inner left myocardium")
+        segmentation_myocardium.GetSegment(middle_id).SetName("middle left myocardium")
+        segmentation_myocardium.GetSegment(outer_id).SetName("outer left myocardium")
+        segmentation_myocardium.GetSegment(inner_id).SetColor(COLOUR_PINK)
+        segmentation_myocardium.GetSegment(middle_id).SetColor(COLOUR_GREEN)
+        segmentation_myocardium.GetSegment(outer_id).SetColor(COLOUR_LIGHT_BLUE)
+
+
+        # segmentation_logic.set_segments_visibility(segmentation_node, 
+        #                                            [inner_id, middle_id, outer_id, right_myocardium_id], 
+        #                                            input_volume)
 
         editor_widget.setSegmentationNode(None)
         editor_widget.setSourceVolumeNode(None)
@@ -500,6 +494,10 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         for key, value in parameters.items():
             effect.setParameter(key, value)
         effect.self().onApply()
+
+    def copy_segment(self, source_segment_id: str, destination_segment_id: str) -> None:
+        self.configure_editor(destination_segment_id, mask_enabled=False, mask_mode=EDITABLE_ANYWHERE)
+        self.apply_effect("Logical operators", {"Operation": "COPY", "ModifierSegmentID": source_segment_id})
 
     def union_segments(self, source_segment_id: str, destination_segment_id: str) -> None:
         self.configure_editor(destination_segment_id, mask_enabled=False, mask_mode=EDITABLE_ANYWHERE)
@@ -534,7 +532,7 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
                            left_myocardium_segment_id: str,
                            left_ventricle_segment_id: str) -> None:
         temp_segment_id = segmentation.AddEmptySegment("hollow-left-ventricle", "hollow")
-        self.union_segments(left_ventricle_segment_id, temp_segment_id)
+        self.copy_segment(left_ventricle_segment_id, temp_segment_id)
         self.hollow_segment(temp_segment_id, thickness_mm=1.5, shell_mode="INSIDE_SURFACE")
         self.union_segments(temp_segment_id, left_myocardium_segment_id)
         segmentation.RemoveSegment(temp_segment_id)
@@ -545,7 +543,7 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
                                  min_threshold: float, 
                                  max_threshold: float) -> None:
         self.keep_largest_island(right_ventricle_segment_id)
-        self.union_segments(right_ventricle_segment_id, right_myocardium_segment_id)
+        self.copy_segment(right_ventricle_segment_id, right_myocardium_segment_id)
         self.hollow_segment(right_myocardium_segment_id, 1.5, "OUTSIDE_SURFACE")
         if width_mm != 0:
             self.grow_shrink_segment(right_myocardium_segment_id, width_mm,
@@ -628,17 +626,6 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         inner_id = self.import_labelmap_to_segmentation(inner_labelmap, segmentation_chambers_node)
         middle_id = self.import_labelmap_to_segmentation(middle_labelmap, segmentation_chambers_node)
         outer_id = self.import_labelmap_to_segmentation(outer_labelmap, segmentation_chambers_node)
-
-        # Set colors for the left myocardium layers: inner light pink, middle light green, outer light blue.
-        segmentation = segmentation_chambers_node.GetSegmentation()
-        for segment_id, color in (
-            (inner_id, (1.0, 0.75, 0.8)),
-            (middle_id, (0.75, 1.0, 0.75)),
-            (outer_id, (0.7, 0.85, 1.0)),
-        ):
-            segment = segmentation.GetSegment(segment_id)
-            if segment:
-                segment.SetColor(*color)
 
         # Remove temporary labelmaps
         for node in [inner_labelmap, middle_labelmap, outer_labelmap, myocardium_labelmap, ventricle_labelmap]:
