@@ -241,9 +241,7 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
             self._checkCanUpdate()
 
     def _checkCanSegment(self, caller=None, event=None) -> None:
-        """
-        Check if the user is able to segment.
-        """
+        """Check if the user is able to segment."""
         input_volume = self.ui.InputVolumeSelector.currentNode()
         segmentation_node = self.ui.SegmentationSelector.currentNode()
 
@@ -255,9 +253,7 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
             self.ui.SegmentButton.enabled = False
 
     def _checkCanUpdate(self, caller=None, event=None) -> None:
-        """
-        Check if the user is able to update the segmentation.
-        """
+        """Check if the user is able to update the segmentation."""
         input_volume = self.ui.InputVolumeSelector.currentNode()
         segmentation_node = self.ui.SegmentationSelector.currentNode()
 
@@ -343,9 +339,8 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
 
 
 class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
-    """This class should implement all the actual
-    computation done by your module.  The interface
-    should be such that other python code can import
+    """This class implements all the actual
+    computation done by your module.  Other python code can import
     this class and make use of the functionality without
     requiring an instance of the Widget.
     Uses ScriptedLoadableModuleLogic base class, available at:
@@ -360,11 +355,12 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         self.editor_node = editor_node
 
     def getParameterNode(self):
+        """Get the parameter node."""
         return MyocardiumSegmentationModuleParameterNode(super().getParameterNode())
 
     def run_total_segmentator(self, input_volume: vtkMRMLScalarVolumeNode, 
                               segmentation_node: vtkMRMLSegmentationNode) -> None:
-        """Run TotalSegmentator."""
+        """Run TotalSegmentator to segment the main heart chambers."""
         if not input_volume:
             raise ValueError("Input volume is invalid")
 
@@ -377,26 +373,17 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
             raise RuntimeError("TotalSegmentator logic is not available.")
 
         # segmentation_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", SEGMENTATION_CHAMBERS_NODE_NAME)
-        widget_self.logic.process(inputVolume=input_volume,
-                                  outputSegmentation=segmentation_node,
-                                  quality=SEGMENTATION_QUALITY,
-                                  task=SEGMENTATION_CHAMBERS_TASK)
+        widget_self.logic.process(inputVolume=input_volume, outputSegmentation=segmentation_node, 
+                                  quality=SEGMENTATION_QUALITY, task=SEGMENTATION_CHAMBERS_TASK)
 
         if not segmentation_node.GetSegmentation().GetSegmentIDs():
             raise RuntimeError("TotalSegmentator chamber segmentation failed.")
 
-        # return segmentation_node
 
-    def process(self,
-                input_volume: vtkMRMLScalarVolumeNode,
-                segmentation_node: vtkMRMLSegmentationNode,
-                right_myocardium_width: float,
-                left_myocardium_growth: float,
-                inner_myocardium_percentile: float,
-                middle_myocardium_percentile: float,
-                min_threshold: float,
-                max_threshold: float) -> None:
-        """ # TODO: fix the docstring and the parameters
+    def process(self, input_volume: vtkMRMLScalarVolumeNode, segmentation_node: vtkMRMLSegmentationNode,
+                right_myocardium_width: float, left_myocardium_growth: float, inner_myocardium_percentile: float,
+                middle_myocardium_percentile: float, min_threshold: float, max_threshold: float) -> None:
+        """ 
         Run the left/right myocardium segmentation algorithm.
         Can be used without GUI widget.
         :param input_volume: input volume used by the segment editor
@@ -422,8 +409,6 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
             temp_id = segmentation_myocardium.GetSegmentIdBySegmentName(name)
             if temp_id: # If not None, then remove
                 segmentation_myocardium.RemoveSegment(temp_id)
-
-
 
         left_myocardium_id = segmentation_myocardium.GetSegmentIdBySegmentName("myocardium")
         if not left_myocardium_id:
@@ -454,14 +439,8 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
                          min_threshold, max_threshold)
         segmentation_logic.improve_left_myocardium(segmentation_myocardium, left_ventricle_id, left_myocardium_id, left_myocardium_growth,
                         min_threshold, max_threshold)
-        inner_id, middle_id, outer_id = segmentation_logic.divide_myocardium(
-            input_volume,
-            segmentation_node,
-            left_myocardium_id,
-            left_ventricle_id,
-            inner_myocardium_percentile,
-            middle_myocardium_percentile,
-        )
+        inner_id, middle_id, outer_id = segmentation_logic.divide_myocardium(input_volume, segmentation_node, left_myocardium_id,
+            left_ventricle_id, inner_myocardium_percentile, middle_myocardium_percentile)
 
         segmentation_myocardium.GetSegment(inner_id).SetName("inner left myocardium")
         segmentation_myocardium.GetSegment(middle_id).SetName("middle left myocardium")
@@ -470,10 +449,7 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         segmentation_myocardium.GetSegment(middle_id).SetColor(COLOUR_GREEN)
         segmentation_myocardium.GetSegment(outer_id).SetColor(COLOUR_LIGHT_BLUE)
 
-
-        # segmentation_logic.set_segments_visibility(segmentation_node, 
-        #                                            [inner_id, middle_id, outer_id, right_myocardium_id], 
-        #                                            input_volume)
+        # segmentation_logic.set_segments_visibility(segmentation_node, [inner_id, middle_id, outer_id, right_myocardium_id], input_volume)
 
         editor_widget.setSegmentationNode(None)
         editor_widget.setSourceVolumeNode(None)
@@ -482,10 +458,10 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
 
         logging.info("Myocardium segmentation completed")
 
-    def configure_editor(self, segment_id: str,
-                         overwrite_mode=slicer.vtkMRMLSegmentEditorNode.OverwriteNone,
-                         mask_mode: int = EDITABLE_ANYWHERE, mask_enabled: bool = False,
-                         min_threshold: int = 0, max_threshold: int = 0) -> None:
+    def configure_editor(self, segment_id: str, overwrite_mode=slicer.vtkMRMLSegmentEditorNode.OverwriteNone,
+                         mask_mode: int = EDITABLE_ANYWHERE, mask_enabled: bool = False, min_threshold: int = 0, 
+                         max_threshold: int = 0) -> None:
+        """Configure the segment editor node with the given settings."""
         self.editor_node.SetSelectedSegmentID(segment_id)
         self.editor_node.SetOverwriteMode(overwrite_mode)
         self.editor_node.SetMaskMode(mask_mode)
@@ -494,6 +470,7 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
             self.editor_node.SetSourceVolumeIntensityMaskRange(min_threshold, max_threshold)
 
     def apply_effect(self, effect_name: str, parameters: dict) -> None:
+        """Apply the segment editor effect with parameters."""
         self.editor_widget.setActiveEffectByName(effect_name)
         effect = self.editor_widget.activeEffect()
         for key, value in parameters.items():
@@ -501,82 +478,70 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
         effect.self().onApply()
 
     def copy_segment(self, source_segment_id: str, destination_segment_id: str) -> None:
+        """Copy the source segment into the destination segment."""
         self.configure_editor(destination_segment_id, mask_enabled=False, mask_mode=EDITABLE_ANYWHERE)
         self.apply_effect("Logical operators", {"Operation": "COPY", "ModifierSegmentID": source_segment_id})
 
     def union_segments(self, source_segment_id: str, destination_segment_id: str) -> None:
+        """Union the source and destination segment into the destination segment."""
         self.configure_editor(destination_segment_id, mask_enabled=False, mask_mode=EDITABLE_ANYWHERE)
-        self.apply_effect("Logical operators",
-                          {"Operation": "UNION", "ModifierSegmentID": source_segment_id})
+        self.apply_effect("Logical operators", {"Operation": "UNION", "ModifierSegmentID": source_segment_id})
 
     def keep_largest_island(self, destination_segment_id: str) -> None:
+        """Keep the largest island in the segment."""
         self.configure_editor(destination_segment_id, mask_enabled=False, mask_mode=EDITABLE_ANYWHERE)
         self.apply_effect("Islands", {"Operation": "KEEP_LARGEST_ISLAND"})
 
     def hollow_segment(self, destination_segment_id: str, thickness_mm: float, shell_mode: str) -> None:
+        """Hollow the segment to the given thickness and shell mode."""
         self.configure_editor(destination_segment_id, mask_enabled=False, mask_mode=EDITABLE_ANYWHERE)
-        self.apply_effect("Hollow",
-                          {"ShellThicknessMm": thickness_mm,
-                           "ShellMode": shell_mode,
-                           "ApplyToAllVisibleSegments": 0})
+        self.apply_effect("Hollow",  {"ShellThicknessMm": thickness_mm, "ShellMode": shell_mode, "ApplyToAllVisibleSegments": 0})
 
     def grow_shrink_segment(self, destination_segment_id: str, margin_mm: float, mask_mode: int,
                             min_threshold: int, max_threshold: int) -> None:
+        """Grow or shrink the segment by the given margin size."""
         self.configure_editor(destination_segment_id, mask_enabled=True, mask_mode=mask_mode,
                               min_threshold=min_threshold, max_threshold=max_threshold)
         self.apply_effect("Margin", {"MarginSizeMm": margin_mm})
 
     def smooth_segment(self, destination_segment_id: str, kernel_size_mm: float) -> None:
+        """Smooth the segment using Closing and Median and the given kernel size."""
         self.configure_editor(destination_segment_id, mask_enabled=False, mask_mode=EDITABLE_ANYWHERE)
-        self.apply_effect("Smoothing",
-                          {"SmoothingMethod": "CLOSING", "KernelSizeMm": kernel_size_mm})
-        self.apply_effect("Smoothing",
-                          {"SmoothingMethod": "MEDIAN", "KernelSizeMm": kernel_size_mm})
+        self.apply_effect("Smoothing", {"SmoothingMethod": "CLOSING", "KernelSizeMm": kernel_size_mm})
+        self.apply_effect("Smoothing", {"SmoothingMethod": "MEDIAN", "KernelSizeMm": kernel_size_mm})
 
-    def create_closed_loop(self, segmentation: slicer.vtkMRMLSegmentationNode,
-                           left_myocardium_segment_id: str,
+    def create_closed_loop(self, segmentation: slicer.vtkMRMLSegmentationNode, left_myocardium_segment_id: str,
                            left_ventricle_segment_id: str) -> None:
+        """Create a small border around the left ventricle to union to the left myocardium segment."""
         temp_segment_id = segmentation.AddEmptySegment("hollow-left-ventricle", "hollow")
         self.copy_segment(left_ventricle_segment_id, temp_segment_id)
         self.hollow_segment(temp_segment_id, thickness_mm=1.5, shell_mode="INSIDE_SURFACE")
         self.union_segments(temp_segment_id, left_myocardium_segment_id)
         segmentation.RemoveSegment(temp_segment_id)
 
-    def segment_right_myocardium(self, right_ventricle_segment_id: str,
-                                 right_myocardium_segment_id: str,
-                                 width_mm: float, 
-                                 min_threshold: float, 
-                                 max_threshold: float) -> None:
+    def segment_right_myocardium(self, right_ventricle_segment_id: str, right_myocardium_segment_id: str,
+                                 width_mm: float, min_threshold: float, max_threshold: float) -> None:
+        """Segment the right myocardium by using hollow, margin and smoothing editor effects."""
         self.keep_largest_island(right_ventricle_segment_id)
         self.copy_segment(right_ventricle_segment_id, right_myocardium_segment_id)
         self.hollow_segment(right_myocardium_segment_id, 1.5, "OUTSIDE_SURFACE")
         if width_mm != 0:
-            self.grow_shrink_segment(right_myocardium_segment_id, width_mm,
-                                     EDITABLE_OUTSIDE_ALL_SEGMENTS,
+            self.grow_shrink_segment(right_myocardium_segment_id, width_mm, EDITABLE_OUTSIDE_ALL_SEGMENTS,
                                      min_threshold, max_threshold)
         self.smooth_segment(right_myocardium_segment_id, max(width_mm / 2, 1.0))
 
-    def improve_left_myocardium(self, segmentation: slicer.vtkMRMLSegmentationNode,
-                                left_ventricle_segment_id: str,
-                                left_myocardium_segment_id: str,
-                                width_mm: float,
-                                min_threshold: float, 
-                                max_threshold: float) -> None:
+    def improve_left_myocardium(self, segmentation: slicer.vtkMRMLSegmentationNode, left_ventricle_segment_id: str,
+                                left_myocardium_segment_id: str, width_mm: float, min_threshold: float, max_threshold: float) -> None:
+        """Improve the left myocardium segment by using margin effects, smoothing and creating a closed volume."""
         if width_mm != 0:
-            self.grow_shrink_segment(left_myocardium_segment_id, width_mm,
-                                     EDITABLE_OUTSIDE_ALL_SEGMENTS,
-                                     min_threshold, max_threshold)
+            self.grow_shrink_segment(left_myocardium_segment_id, width_mm, EDITABLE_OUTSIDE_ALL_SEGMENTS, min_threshold, max_threshold)
         self.smooth_segment(left_myocardium_segment_id, max(1.5, width_mm / 2))
         self.create_closed_loop(segmentation, left_myocardium_segment_id, left_ventricle_segment_id)
 
-    def divide_myocardium(self, volume_node: slicer.vtkMRMLScalarVolumeNode,
-                          segmentation_chambers_node: slicer.vtkMRMLSegmentationNode,
-                          myocardium_segment_id: str, ventricle_segment_id: str,
-                          inner_percentile: float, middle_percentile: float) -> tuple[str, str, str]:
-        """
-        Divide the left myocardium into three layers, inner, middle, outer that extend from the left ventricle 
-        and end at the edge of the left myocardium. Return the segment IDs of the inner, middle and outer segments. 
-        """
+    def divide_myocardium(self, volume_node: slicer.vtkMRMLScalarVolumeNode, segmentation_chambers_node: slicer.vtkMRMLSegmentationNode,
+                          myocardium_segment_id: str, ventricle_segment_id: str, inner_percentile: float, middle_percentile: float) -> tuple[str, str, str]:
+        """Divide the left myocardium into three layers, inner, middle, outer that extend from the left ventricle 
+        and end at the edge of the left myocardium. Return the segment IDs of the inner, middle and outer segments."""
         import numpy as np
         import scipy.ndimage
 
@@ -643,9 +608,7 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
     # TODO: figure out where to put these 3 functions
     def export_segment_to_labelmap(self, segmentation_node: slicer.vtkMRMLSegmentationNode, segment_id: str, 
                                     volume_node: slicer.vtkMRMLScalarVolumeNode, labelmap_name: str) -> slicer.vtkMRMLLabelMapVolumeNode:
-        """
-        Export the segment to a labelmap using the segment id and labelmap name given, return a labelmap.
-        """
+        """Export the segment to a labelmap using the segment id and labelmap name given, return a labelmap."""
 
         labelmap_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode", labelmap_name)
         slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(segmentation_node, [segment_id], 
@@ -654,9 +617,7 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
 
     def import_labelmap_to_segmentation(self, labelmap_node: slicer.vtkMRMLLabelMapVolumeNode, 
                                         segmentation_node: slicer.vtkMRMLSegmentationNode) -> str:
-        """
-        Import a labelmap into a segment, and return the new segment ID.
-        """
+        """Import a labelmap into a segment, and return the new segment ID."""
 
         segmentation = segmentation_node.GetSegmentation()
         existing_ids = set(segmentation.GetSegmentIDs())
@@ -670,10 +631,10 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
 
         return new_ids.pop()
     
-    def set_segments_visibility(self, 
-                                segmentation_node: slicer.vtkMRMLSegmentationNode, 
-                                visible_segmentids: list[str], 
+    def set_segments_visibility(self, segmentation_node: slicer.vtkMRMLSegmentationNode, visible_segmentids: list[str], 
                                 volume_node: slicer.vtkMRMLScalarVolumeNode) -> None:
+        """Set the given segments visible, and the rest of the segments not visible. 
+        Display the 3D model of the visible segments and adjust the window and level."""
         display_node = segmentation_node.GetDisplayNode()
         segmentation = segmentation_node.GetSegmentation()
         
@@ -699,7 +660,7 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
 
 class MyocardiumSegmentationModuleTest(ScriptedLoadableModuleTest):
     """
-    This is the test case for your scripted module.
+    This is the test case for the scripted module.
     Uses ScriptedLoadableModuleTest base class, available at:
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
