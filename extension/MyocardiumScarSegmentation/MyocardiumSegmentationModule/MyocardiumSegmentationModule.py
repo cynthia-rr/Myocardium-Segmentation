@@ -1,9 +1,8 @@
 import logging
 import os
-# from token import LEFTSHIFTEQUAL
 
-import vtk
 from typing import Any
+import vtk
 
 import slicer
 from slicer.i18n import tr as _
@@ -21,7 +20,7 @@ from slicer import vtkMRMLScalarVolumeNode, vtkMRMLSegmentationNode
 
 SEGMENTATION_QUALITY = "normal"
 SEGMENTATION_CHAMBERS_TASK = "heartchambers_highres"
-SEGMENTATION_CHAMBERS_NODE_NAME = "Chambers-Segmentation"
+SEGMENTATION_MYOCARDIUM_NAME = "Myocardium-Segmentation"
 COLOUR_PINK = (1.0, 0.8, 1.0)
 COLOUR_GREEN = (0.6, 0.8, 0.6)
 COLOUR_LIGHT_BLUE = (0.7, 0.8, 1.0)
@@ -420,11 +419,10 @@ class MyocardiumSegmentationModuleLogic(ScriptedLoadableModuleLogic):
             raise RuntimeError("Could not find required ventricle segments in the chambers segmentation.")
 
         right_myocardium_id = segmentation_myocardium.GetSegmentIdBySegmentName("right_myocardium")
-        if right_myocardium_id: # If not None, then remove the old segment before making another
-            segmentation_myocardium.RemoveSegment(right_myocardium_id)
-        # Create a new segment
-        right_myocardium_id = segmentation_myocardium.AddEmptySegment("heart_myocardium_right", "right myocardium")
-        segmentation_myocardium.GetSegment(right_myocardium_id).SetColor(COLOUR_PURPLE)
+        if not right_myocardium_id: # If None, make a new segment
+            # Create a new segment # TODO
+            right_myocardium_id = segmentation_myocardium.AddEmptySegment("heart_myocardium_right", "right myocardium", COLOUR_PURPLE)
+            # segmentation_myocardium.GetSegment(right_myocardium_id).SetColor(COLOUR_PURPLE)
 
         # Create Segment Editor
         segment_editor_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentEditorNode", "SegmentEditorNode")
