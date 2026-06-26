@@ -12,7 +12,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="ctkCollapsibleButton" name="SegmentationCollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="segmentationCollapsibleButton">
      <property name="toolTip">
       <string>Select the input nodes.</string>
      </property>
@@ -24,14 +24,14 @@
        <number>4</number>
       </property>
       <item row="0" column="0">
-       <widget class="QLabel" name="InputVolumeLabel">
+       <widget class="QLabel" name="inputVolumeLabel">
         <property name="text">
          <string>Input volume:</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="qMRMLNodeComboBox" name="InputVolumeSelector">
+       <widget class="qMRMLNodeComboBox" name="inputVolumeSelector">
         <property name="toolTip">
          <string>Pick the input volume node.</string>
         </property>
@@ -55,14 +55,14 @@
        </widget>
       </item>
       <item row="1" column="0">
-       <widget class="QLabel" name="SegmentationLabel">
+       <widget class="QLabel" name="segmentationLabel">
         <property name="text">
          <string>Segmentation node:                  </string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="qMRMLNodeComboBox" name="SegmentationSelector">
+       <widget class="qMRMLNodeComboBox" name="segmentationSelector">
         <property name="toolTip">
          <string>Select the segmentation node for the intemediate segmentation.</string>
         </property>
@@ -95,7 +95,7 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QPushButton" name="SegmentButton">
+       <widget class="QPushButton" name="segmentButton">
         <property name="enabled">
          <bool>false</bool>
         </property>
@@ -126,14 +126,14 @@
        <number>4</number>
       </property>
       <item row="0" column="0">
-       <widget class="QLabel" name="MyocardiumRangeLabel">
+       <widget class="QLabel" name="myocardiumRangeLabel">
         <property name="text">
          <string>Myocardium range (HU):</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="ctkRangeWidget" name="ThresholdRangeWidget">
+       <widget class="ctkRangeWidget" name="thresholdRangeWidget">
         <property name="toolTip">
          <string>Adjust the threshold boundaries for the myocardium tissue.</string>
         </property>
@@ -155,14 +155,14 @@
        </widget>
       </item>
       <item row="1" column="0">
-       <widget class="QLabel" name="RightMyocardiumWidthLabel">
+       <widget class="QLabel" name="rightMyocardiumWidthLabel">
         <property name="text">
          <string>Right myocardium width (mm):</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QDoubleSpinBox" name="RightMyocardiumWidthSpinBox">
+       <widget class="QDoubleSpinBox" name="rightMyocardiumWidthSpinBox">
         <property name="toolTip">
          <string>Adjust the width of the right myocardium.</string>
         </property>
@@ -178,14 +178,14 @@
        </widget>
       </item>
       <item row="2" column="0">
-       <widget class="QLabel" name="LeftMyocardiumWidthLabel">
+       <widget class="QLabel" name="leftMyocardiumWidthLabel">
         <property name="text">
          <string>Left myocardium growth (mm):</string>
         </property>
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QDoubleSpinBox" name="LeftMyocardiumGrowthSpinBox">
+       <widget class="QDoubleSpinBox" name="leftMyocardiumGrowthSpinBox">
         <property name="toolTip">
          <string>Adjust the growth of the left myocardium.</string>
         </property>
@@ -201,14 +201,14 @@
        </widget>
       </item>
       <item row="3" column="0">
-       <widget class="QLabel" name="LeftMyocardiumLayersLabel">
+       <widget class="QLabel" name="leftMyocardiumLayersLabel">
         <property name="text">
          <string>Left myocardium division (%):</string>
         </property>
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="ctkRangeWidget" name="PercentileRangeWidget">
+       <widget class="ctkRangeWidget" name="percentileRangeWidget">
         <property name="toolTip">
          <string>Adjust the boundaries for the division.</string>
         </property>
@@ -227,7 +227,7 @@
        </widget>
       </item>
       <item row="4" column="1">
-       <widget class="QPushButton" name="UpdateButton">
+       <widget class="QPushButton" name="updateButton">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -286,7 +286,7 @@
   <connection>
    <sender>MyocardiumSegmentationModule</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>InputVolumeSelector</receiver>
+   <receiver>inputVolumeSelector</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -302,7 +302,7 @@
   <connection>
    <sender>MyocardiumSegmentationModule</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>SegmentationSelector</receiver>
+   <receiver>segmentationSelector</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
     <hint type="sourcelabel">

@@ -170,12 +170,12 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
         # Buttons
-        self.ui.SegmentButton.connect("clicked(bool)", self.onSegment)
-        self.ui.UpdateButton.connect("clicked(bool)", self.onUpdate)
-        self.ui.InputVolumeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanSegment) 
-        self.ui.InputVolumeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanUpdate)
-        self.ui.SegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanSegment)
-        self.ui.SegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanUpdate)
+        self.ui.segmentButton.connect("clicked(bool)", self.onSegment)
+        self.ui.updateButton.connect("clicked(bool)", self.onUpdate)
+        self.ui.inputVolumeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanSegment) 
+        self.ui.inputVolumeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanUpdate)
+        self.ui.segmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanSegment)
+        self.ui.segmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self._checkCanUpdate)
 
         self.initializeParameterNode()
         self._checkCanSegment()
@@ -217,12 +217,12 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
             firstVolumeNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLScalarVolumeNode")
             if firstVolumeNode:
                 self._parameterNode.inputVolume = firstVolumeNode
-                self.ui.InputVolumeSelector.setCurrentNode(firstVolumeNode)
+                self.ui.inputVolumeSelector.setCurrentNode(firstVolumeNode)
         if not self._parameterNode.segmentationNode:
             segmentationNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLSegmentationNode")
             if segmentationNode:
                 self._parameterNode.segmentationNode = segmentationNode
-                self.ui.SegmentationSelector.setCurrentNode(segmentationNode)
+                self.ui.segmentationSelector.setCurrentNode(segmentationNode)
 
     def setParameterNode(self, inputParameterNode: MyocardiumSegmentationModuleParameterNode | None) -> None:
         """Set and observe parameter node."""
@@ -241,27 +241,27 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
 
     def _checkCanSegment(self, caller=None, event=None) -> None:
         """Check if the user is able to segment."""
-        input_volume = self.ui.InputVolumeSelector.currentNode()
-        segmentation_node = self.ui.SegmentationSelector.currentNode()
+        input_volume = self.ui.inputVolumeSelector.currentNode()
+        segmentation_node = self.ui.segmentationSelector.currentNode()
 
         if input_volume and segmentation_node:
-            self.ui.SegmentButton.toolTip = _("Click to run initial TotalSegmentator segmentation")
-            self.ui.SegmentButton.enabled = True
+            self.ui.segmentButton.toolTip = _("Click to run initial TotalSegmentator segmentation")
+            self.ui.segmentButton.enabled = True
         else:
-            self.ui.SegmentButton.toolTip = _("Select an input volume and segmentation first.")
-            self.ui.SegmentButton.enabled = False
+            self.ui.segmentButton.toolTip = _("Select an input volume and segmentation first.")
+            self.ui.segmentButton.enabled = False
 
     def _checkCanUpdate(self, caller=None, event=None) -> None:
         """Check if the user is able to update the segmentation."""
-        input_volume = self.ui.InputVolumeSelector.currentNode()
-        segmentation_node = self.ui.SegmentationSelector.currentNode()
+        input_volume = self.ui.inputVolumeSelector.currentNode()
+        segmentation_node = self.ui.segmentationSelector.currentNode()
 
         if input_volume and segmentation_node:
-            self.ui.UpdateButton.toolTip = _("Click to segment or re-segment the right myocardium and left myocardium layers.")
-            self.ui.UpdateButton.enabled = True
+            self.ui.updateButton.toolTip = _("Click to segment or re-segment the right myocardium and left myocardium layers.")
+            self.ui.updateButton.enabled = True
         else:
-            self.ui.UpdateButton.toolTip = _("Select an input volume and segmentation.")
-            self.ui.UpdateButton.enabled = False
+            self.ui.updateButton.toolTip = _("Select an input volume and segmentation.")
+            self.ui.updateButton.enabled = False
 
     def _get_widget_value(self, widget) -> Any:
         """Return the value of a Qt widget (handles callables like value())."""
@@ -290,16 +290,16 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
             raise RuntimeError("Parameter node is not initialized.")
 
         # Update parameter node with the latest UI values.
-        self._parameterNode.rightMyocardiumWidth = self._get_widget_value(self.ui.RightMyocardiumWidthSpinBox)
-        self._parameterNode.leftMyocardiumGrowth = self._get_widget_value(self.ui.LeftMyocardiumGrowthSpinBox)
-        inner_percentile, middle_percentile = self._get_range_widget_values(self.ui.PercentileRangeWidget) 
+        self._parameterNode.rightMyocardiumWidth = self._get_widget_value(self.ui.rightMyocardiumWidthSpinBox)
+        self._parameterNode.leftMyocardiumGrowth = self._get_widget_value(self.ui.leftMyocardiumGrowthSpinBox)
+        inner_percentile, middle_percentile = self._get_range_widget_values(self.ui.percentileRangeWidget) 
         # TODO: use ranges as just tuples instead of converting to 2 separate values
-        min_threshold, max_threshold = self._get_range_widget_values(self.ui.ThresholdRangeWidget)
+        min_threshold, max_threshold = self._get_range_widget_values(self.ui.thresholdRangeWidget)
         self._parameterNode.myocardiumInnerLimit = inner_percentile
         self._parameterNode.myocardiumMiddleLimit = middle_percentile
         self._parameterNode.myocardiumLowerThreshold = min_threshold
         self._parameterNode.myocardiumUpperThreshold = max_threshold
-        self._parameterNode.segmentationNode = self.ui.SegmentationSelector.currentNode()
+        self._parameterNode.segmentationNode = self.ui.segmentationSelector.currentNode()
 
         if inner_percentile is None or middle_percentile is None:
             raise RuntimeError("Left myocardium layer division values are unavailable.")
@@ -309,16 +309,10 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
             raise RuntimeError("Segmentation is not selected.")
 
         with slicer.util.tryWithErrorDisplay(_("Failed to compute results."), waitCursor=True):
-            self.logic.process(
-                self._parameterNode.inputVolume,
-                self._parameterNode.segmentationNode,
-                self._parameterNode.rightMyocardiumWidth,
-                self._parameterNode.leftMyocardiumGrowth,
-                self._parameterNode.myocardiumInnerLimit,
-                self._parameterNode.myocardiumMiddleLimit,
-                self._parameterNode.myocardiumLowerThreshold,
-                self._parameterNode.myocardiumUpperThreshold
-                )
+            self.logic.process(self._parameterNode.inputVolume, self._parameterNode.segmentationNode,
+                               self._parameterNode.rightMyocardiumWidth, self._parameterNode.leftMyocardiumGrowth,
+                               self._parameterNode.myocardiumInnerLimit, self._parameterNode.myocardiumMiddleLimit,
+                               self._parameterNode.myocardiumLowerThreshold, self._parameterNode.myocardiumUpperThreshold)
 
     def onSegment(self) -> None:
         """Run TotalSegmentator when user clicks the 'Segment' button."""
@@ -328,7 +322,7 @@ class MyocardiumSegmentationModuleWidget(ScriptedLoadableModuleWidget, VTKObserv
         with slicer.util.tryWithErrorDisplay(_("Failed to run TotalSegmentator."), waitCursor=True):
             self.logic.run_total_segmentator(self._parameterNode.inputVolume, self._parameterNode.segmentationNode)
             # self._parameterNode.segmentationNode = chambers_node
-            # self.ui.SegmentationSelector.setCurrentNode(chambers_node)
+            # self.ui.segmentationSelector.setCurrentNode(chambers_node)
             self._checkCanSegment()
 
 
