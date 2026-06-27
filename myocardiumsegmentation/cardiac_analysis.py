@@ -102,9 +102,7 @@ def divide_myocardium(volume_node: slicer.vtkMRMLScalarVolumeNode,
 def segment_scar(segmentation: slicer.vtkMRMLSegmentationNode, segmentation_effusion_node: slicer.vtkMRMLSegmentationNode, 
                  editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
                  scar_segment_id: str, pleural_segment_id: str, border_segment_id: str) -> None:
-    """ 
-    Segment the general scar area by using a threshold, and subtracting the pleural border
-    """
+    """Segment the general scar area by using a threshold, and subtracting the pleural border."""
     threshold_segment(editor_widget, editor_node, scar_segment_id, MIN_SCAR_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
     segmentation.CopySegmentFromSegmentation(segmentation_effusion_node.GetSegmentation(), pleural_segment_id)
     # Copy the Pleural Effusion into the Border segment 
@@ -114,9 +112,7 @@ def segment_scar(segmentation: slicer.vtkMRMLSegmentationNode, segmentation_effu
 
 def segment_scar_in_region(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.vtkMRMLSegmentEditorNode, 
                            scar_segment_id: str, region_segment_id: str, destination_segment_id: str) -> None:
-    """
-    Set the scar destination segment to be the intersection of the general scar and the target region
-    """
+    """Set the scar destination segment to be the intersection of the general scar and the target region."""
     union_segments(editor_widget, editor_node, region_segment_id, destination_segment_id)
     intersect_segments(editor_widget, editor_node, scar_segment_id, destination_segment_id)
     # TODO: and subtract for better visual?
@@ -125,28 +121,11 @@ def segment_scar_in_region(editor_widget: slicer.qMRMLSegmentEditorWidget, edito
 # TODO: come up with a better name than this
 def segment_scar_sections(editor_widget: slicer.qMRMLSegmentEditorWidget, editor_node: slicer.qMRMLSegmentEditorWidget, 
                             scar_segment_id: str, region_to_scar_segment_id: dict[str, str]) -> None:
-    """
-    Segment the right scar, the left scar, the left inner, middle and outer scars by calling segment_scar_in_region
-    for each (region, scar) pair.
-    For ex. (left_myocardium_id, left_scar_id), (left_inner_myocardium_id, left_inner_scar_id)           
-    """
+    """Segment the right scar, the left scar, the left inner, middle and outer scars by calling segment_scar_in_region
+    for each (region, scar) pair. For ex. (left_myocardium_id, left_scar_id), (left_inner_myocardium_id, left_inner_scar_id)"""
 
-     # TODO: smooth left and right scars??
-    # TODO: do the left/right need smoothing?
+    # TODO: fix magic numbers
     smooth_segment(editor_widget, editor_node, scar_segment_id, 1.2)
-    """segmentEditorWidget.setActiveEffectByName("Smoothing")
-    setSegmentEditorNode(segmentEditorNode, leftScarSegmentID, True, EDITABLE_ANYWHERE, 
-                        MIN_THRESHOLD_VALUE, MAX_SCAR_THRESHOLD_VALUE)
-
-    effect = segmentEditorWidget.activeEffect()
-    effect.setParameter("SmoothingMethod", "CLOSING")
-    effect.setParameter("KernelSizeMm", "2.0")
-    effect.self().onApply()
-
-    # TODO: fix the magic numbers
-    effect.setParameter("SmoothingMethod", "OPENING")
-    effect.setParameter("KernelSizeMm", "1.2")
-    effect.self().onApply()"""
 
     for region_segment_id in region_to_scar_segment_id:
         segment_scar_in_region(editor_widget, editor_node, scar_segment_id, region_segment_id, region_to_scar_segment_id[region_segment_id])
@@ -157,10 +136,9 @@ def segment_wall_thickness(volume_node: slicer.vtkMRMLScalarVolumeNode, segmenta
     """Segment the myocardium into 2 segments depending on the wall thickness and 
     return the new segment Ids."""
 
-    # Export myocardium to myocardium label mapw
+    # Export myocardium to myocardium label map
     myocardium_labelmap = export_segment_to_labelmap(segmentation_node, myocardium_segment_id, volume_node, "MyocardiumLabelMap")
     ventricle_labelmap = export_segment_to_labelmap(segmentation_node, left_ventricle_segment_id, volume_node, "LeftVentricleLabelMap")
-
 
     # Create thin and thick layer labelmaps as a duplicate of the myocardium to start off 
     thin_labelmap = export_segment_to_labelmap(segmentation_node, myocardium_segment_id, volume_node, "ThinLayerLabelMap")
@@ -217,168 +195,131 @@ import vtk
 THRESHOLD_MM = 10.0
 STEP_MM = 0.5
 
-def segment_wall_thickness2(
-        volume_node,
-        segmentation_node,
-        myocardium_segment_id,
-        lv_segment_id):
+def segment_wall_thickness2(volume_node, segmentation_node, myocardium_segment_id, ventricle_segment_id):
 
-    #
     # Export myocardium labelmap
-    #
-    myocardium_labelmap = export_segment_to_labelmap(
-        segmentation_node,
-        myocardium_segment_id,
-        volume_node,
-        "Myocardium")
-
-    myocardium = slicer.util.arrayFromVolume(
-        myocardium_labelmap).astype(bool)
+    myocardium_labelmap = export_segment_to_labelmap(segmentation_node, myocardium_segment_id, volume_node, "Myocardium")
+    myocardium = slicer.util.arrayFromVolume(myocardium_labelmap).astype(bool)
 
     spacing = np.array(myocardium_labelmap.GetSpacing())
-    origin = np.array(myocardium_labelmap.GetOrigin())
 
-    dims = myocardium.shape
-
-    #
     # Use a step no larger than half the smallest voxel
-    #
     step_mm = min(np.min(spacing) * 0.5, STEP_MM)
 
-    #
-    # Obtain LV surface
-    #
+    # Create surface of left ventricle
     segmentation_node.CreateClosedSurfaceRepresentation()
+    ventricle_polydata = vtk.vtkPolyData()
+    segmentation_node.GetClosedSurfaceRepresentation(ventricle_segment_id, ventricle_polydata)
 
-    lv_poly = vtk.vtkPolyData()
-
-    segmentation_node.GetClosedSurfaceRepresentation(
-        lv_segment_id,
-        lv_poly)
-
-    #
-    # Compute point normals
-    #
+    # Compute point normals (orthogonal to left ventricle surface)
     normals = vtk.vtkPolyDataNormals()
-    normals.SetInputData(lv_poly)
+    normals.SetInputData(ventricle_polydata)
     normals.ComputePointNormalsOn()
     normals.SplittingOff()
     normals.ConsistencyOn()
     normals.AutoOrientNormalsOn()
     normals.Update()
 
-    lv_poly = normals.GetOutput()
+    ventricle_polydata = normals.GetOutput()
+    point_normals = ventricle_polydata.GetPointData().GetNormals()
+    center = np.array(ventricle_polydata.GetCenter())
 
-    point_normals = lv_poly.GetPointData().GetNormals()
+    # Map of thickness
+    thickness_map = np.full(myocardium.shape, np.inf, dtype=np.float32)
 
-    center = np.array(lv_poly.GetCenter())
 
-    #
-    # Thickness map
-    #
-    thickness = np.full(myocardium.shape, np.inf, dtype=np.float32)
+    ras_to_ijk = vtk.vtkMatrix4x4()
+    myocardium_labelmap.GetRASToIJKMatrix(ras_to_ijk)
 
-    #
-    # Cast one ray per surface vertex
-    #
-    for i in range(lv_poly.GetNumberOfPoints()):
+    found = False
 
-        p = np.array(lv_poly.GetPoint(i))
-        n = np.array(point_normals.GetTuple(i))
+    for index in range(ventricle_polydata.GetNumberOfPoints()):
+        point = np.array(ventricle_polydata.GetPoint(index))
 
-        #
-        # Force normals outward
-        #
-        if np.dot(p - center, n) < 0:
-            n = -n
+        ijk = ras_to_ijk.MultiplyPoint([point[0], point[1], point[2], 1.0])
 
-        #
+        ijk_i = int(round(ijk[0]))
+        ijk_j = int(round(ijk[1]))
+        ijk_k = int(round(ijk[2]))
+
+        if (
+            0 <= ijk_k < myocardium.shape[0] and
+            0 <= ijk_j < myocardium.shape[1] and
+            0 <= ijk_i < myocardium.shape[2]
+        ):
+
+            if myocardium[ijk_k, ijk_j, ijk_i]:
+
+                normal = np.array(point_normals.GetTuple(index))
+                found = True
+                break
+
+    if not found:
+        print("No surface vertex inside myocardium!")
+
+    # Cast one ray per surface vertex in left ventricle
+    for index in range(ventricle_polydata.GetNumberOfPoints()):
+
+        point = np.array(ventricle_polydata.GetPoint(index))
+        normal = np.array(point_normals.GetTuple(index))
+
+        # Orient normals to outward direction (away from left ventricle)
+        if np.dot(point - center, normal) < 0:
+            normal = -normal
+
         # Start slightly inside myocardium
-        #
         length = 0.5
-
         voxels = []
 
-        while True:
+        while True: # TODO: fix?
 
-            world = p + length * n
-            
+            world = point + length * normal
 
-            ijk = np.floor(
-                (world - origin) / spacing + 0.5).astype(int)
+            ijk4 = ras_to_ijk.MultiplyPoint([world[0], world[1], world[2], 1.0])
 
-            ii = ijk[0]
-            j = ijk[1]
-            k = ijk[2]
+            ijk_i = int(round(ijk4[0]))
+            ijk_j = int(round(ijk4[1]))
+            ijk_k = int(round(ijk4[2]))
 
-            if (ii < 0 or ii >= dims[2] or
-                j < 0 or j >= dims[1] or
-                k < 0 or k >= dims[0]):
+
+            if not myocardium[ijk_k, ijk_j, ijk_i]:
                 break
 
-            if not myocardium[k, j, ii]:
-                break
-
-            voxels.append((k, j, ii))
+            voxels.append((ijk_k, ijk_j, ijk_i))
 
             length += step_mm
-
         #
         # Update minimum thickness for every voxel
         #
-        for v in voxels:
-            if length < thickness[v]:
-                thickness[v] = length
+        for voxel in voxels:
+            if length < thickness_map[voxel]:
+                thickness_map[voxel] = length
 
-    print("Finite thickness voxels:", np.count_nonzero(np.isfinite(thickness)))
 
-    #
-    # Classify
-    #
+    # Smooth to fill in the unknown voxel gaps
+    unknown = myocardium & ~np.isfinite(thickness_map)
+    _, indices = scipy.ndimage.distance_transform_edt(unknown, return_indices=True, return_distances=True)
+
+    thickness_map[unknown] = thickness_map[tuple(indices[:, unknown])]
+
+    # Create thin and thick masks
     thin = np.zeros_like(myocardium, dtype=np.uint8)
     thick = np.zeros_like(myocardium, dtype=np.uint8)
 
-    valid = np.isfinite(thickness)
+    valid = np.isfinite(thickness_map)
 
-    thin[valid & (thickness < THRESHOLD_MM)] = 1
-    thick[valid & (thickness >= THRESHOLD_MM)] = 1
+    thin[valid & (thickness_map < THRESHOLD_MM)] = 1
+    thick[valid & (thickness_map >= THRESHOLD_MM)] = 1
 
-    #
-    # Optional cleanup
-    #
-    # thin = scipy.ndimage.binary_closing(thin)
-    # thick = scipy.ndimage.binary_closing(thick)
-
-    #
-    # Export labelmaps
-    #
-    thin_labelmap = export_segment_to_labelmap(
-        segmentation_node,
-        myocardium_segment_id,
-        volume_node,
-        "Thin")
-
-    thick_labelmap = export_segment_to_labelmap(
-        segmentation_node,
-        myocardium_segment_id,
-        volume_node,
-        "Thick")
-
-    slicer.util.updateVolumeFromArray(
-        thin_labelmap,
-        thin.astype(np.uint8))
-
-    slicer.util.updateVolumeFromArray(
-        thick_labelmap,
-        thick.astype(np.uint8))
-
-    thin_id = import_labelmap_to_segmentation(
-        thin_labelmap,
-        segmentation_node)
-
-    thick_id = import_labelmap_to_segmentation(
-        thick_labelmap,
-        segmentation_node)
+    # Export labelmaps for thin and thick
+    thin_labelmap = export_segment_to_labelmap(segmentation_node, myocardium_segment_id, volume_node, "Thin")
+    thick_labelmap = export_segment_to_labelmap(segmentation_node, myocardium_segment_id, volume_node, "Thick")
+    # Update thin and thick labelmaps using the masks
+    slicer.util.updateVolumeFromArray(thin_labelmap, thin.astype(np.uint8))
+    slicer.util.updateVolumeFromArray(thick_labelmap, thick.astype(np.uint8))
+    # Convert thin and thick labelmaps to segments
+    thin_id = import_labelmap_to_segmentation(thin_labelmap, segmentation_node)
+    thick_id = import_labelmap_to_segmentation(thick_labelmap, segmentation_node)
 
     return thin_id, thick_id
 
