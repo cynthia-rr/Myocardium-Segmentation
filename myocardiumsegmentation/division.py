@@ -2,8 +2,7 @@ import slicer
 
 from io_utils import load_dicom_series, load_segmentation
 # from totalsegmentator_pipeline import run_totalsegmentator_pipeline
-from cardiac_analysis import (
-    segment_wall_thickness, segment_wall_thickness2, 
+from cardiac_analysis import (segment_wall_thickness, 
     divide_myocardium, segment_scar, segment_scar_sections, create_closed_loop)
 
 from visualization import set_segments_visibility
@@ -52,7 +51,7 @@ def division():
     create_closed_loop(segmentation, segment_editor_widget, segment_editor_node, left_myocardium_id, left_ventricle_id)
 
     # Segment thin and thick wall segments
-    thin_wall_id, thick_wall_id = segment_wall_thickness2(volume_node, segmentation_node, left_myocardium_id, left_ventricle_id)
+    thin_wall_id, thick_wall_id = segment_wall_thickness(volume_node, segmentation_node, left_myocardium_id, left_ventricle_id)
     segmentation.GetSegment(thin_wall_id).SetName("left myocardium thin")
     segmentation.GetSegment(thick_wall_id).SetName("left myocardium thick")
     segmentation.GetSegment(thin_wall_id).SetColor(COLOUR_BLUE)
